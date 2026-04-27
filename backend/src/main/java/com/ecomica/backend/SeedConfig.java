@@ -15,8 +15,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.time.Instant;
 
 @Configuration
@@ -35,30 +37,13 @@ public class SeedConfig {
     @Bean
     CommandLineRunner seedData() {
         return args -> {
-            userRepository.findByEmail(adminEmail).orElseGet(() -> userRepository.save(User.builder()
-                    .name("Admin")
-                    .email(adminEmail)
-                    .passwordHash(passwordEncoder.encode(adminPassword))
-                    .role(Role.ADMIN)
-                    .blocked(false)
-                    .createdAt(Instant.now())
-                    .build()));
-            userRepository.findByEmail("buyer@ecomica.com").orElseGet(() -> userRepository.save(User.builder()
-                    .name("Demo Buyer")
-                    .email("buyer@ecomica.com")
-                    .passwordHash(passwordEncoder.encode("buyer123"))
-                    .role(Role.BUYER)
-                    .blocked(false)
-                    .createdAt(Instant.now())
-                    .build()));
-            userRepository.findByEmail("seller@ecomica.com").orElseGet(() -> userRepository.save(User.builder()
-                    .name("Demo Seller")
-                    .email("seller@ecomica.com")
-                    .passwordHash(passwordEncoder.encode("seller123"))
-                    .role(Role.SELLER)
-                    .blocked(false)
-                    .createdAt(Instant.now())
-                    .build()));
+            // Remove old demo identities so login hints stay accurate.
+            userRepository.findByEmail("buyer@ecomica.com").ifPresent(userRepository::delete);
+            userRepository.findByEmail("seller@ecomica.com").ifPresent(userRepository::delete);
+
+            upsertDemoUser("Admin", adminEmail, adminPassword, Role.ADMIN);
+            upsertDemoUser("Anjali Reader", "buyer2@ecomica.com", "buyer234", Role.BUYER);
+            upsertDemoUser("Kavin Books", "seller2@ecomica.com", "seller234", Role.SELLER);
 
             if (categoryRepository.count() == 0) {
                 categoryRepository.save(Category.builder().name("Novels").description("Fiction and literary works").build());
@@ -67,12 +52,12 @@ public class SeedConfig {
                 categoryRepository.save(Category.builder().name("Technology").description("Programming and tech books").build());
             }
 
-            if (bookRepository.count() == 0) {
-                Map<String, String> categoryMap = new HashMap<>();
-                for (Category category : categoryRepository.findAll()) {
-                    categoryMap.put(category.getName(), category.getId());
-                }
+            Map<String, String> categoryMap = new HashMap<>();
+            for (Category category : categoryRepository.findAll()) {
+                categoryMap.put(category.getName(), category.getId());
+            }
 
+            if (bookRepository.count() == 0) {
                 bookRepository.save(Book.builder()
                         .title("The Alchemist")
                         .author("Paulo Coelho")
@@ -81,7 +66,7 @@ public class SeedConfig {
                         .stock(25)
                         .imageUrl("https://images-na.ssl-images-amazon.com/images/I/71aFt4+OTOL.jpg")
                         .categoryId(categoryMap.get("Novels"))
-                        .sellerEmail("seller@ecomica.com")
+                        .sellerEmail("seller2@ecomica.com")
                         .active(true)
                         .moderationStatus("APPROVED")
                         .createdAt(Instant.now())
@@ -94,7 +79,7 @@ public class SeedConfig {
                         .stock(18)
                         .imageUrl("https://images-na.ssl-images-amazon.com/images/I/91M8xPIf10L.jpg")
                         .categoryId(categoryMap.get("Technology"))
-                        .sellerEmail("seller@ecomica.com")
+                        .sellerEmail("seller2@ecomica.com")
                         .active(true)
                         .moderationStatus("APPROVED")
                         .createdAt(Instant.now())
@@ -107,7 +92,7 @@ public class SeedConfig {
                         .stock(40)
                         .imageUrl("https://images-na.ssl-images-amazon.com/images/I/91bYsX41DVL.jpg")
                         .categoryId(categoryMap.get("Education"))
-                        .sellerEmail("seller@ecomica.com")
+                        .sellerEmail("seller2@ecomica.com")
                         .active(true)
                         .moderationStatus("APPROVED")
                         .createdAt(Instant.now())
@@ -120,12 +105,122 @@ public class SeedConfig {
                         .stock(30)
                         .imageUrl("https://images-na.ssl-images-amazon.com/images/I/81o6oLfkWIL.jpg")
                         .categoryId(categoryMap.get("Comics"))
-                        .sellerEmail("seller@ecomica.com")
+                        .sellerEmail("seller2@ecomica.com")
+                        .active(true)
+                        .moderationStatus("APPROVED")
+                        .createdAt(Instant.now())
+                        .build());
+                bookRepository.save(Book.builder()
+                        .title("Deep Work")
+                        .author("Cal Newport")
+                        .description("Strategies for focused success in a distracted world.")
+                        .price(new BigDecimal("720"))
+                        .stock(16)
+                        .imageUrl("https://images-na.ssl-images-amazon.com/images/I/71QKQ9mwV7L.jpg")
+                        .categoryId(categoryMap.get("Education"))
+                        .sellerEmail("seller2@ecomica.com")
+                        .active(true)
+                        .moderationStatus("APPROVED")
+                        .createdAt(Instant.now())
+                        .build());
+                bookRepository.save(Book.builder()
+                        .title("Clean Code")
+                        .author("Robert C. Martin")
+                        .description("A handbook of agile software craftsmanship.")
+                        .price(new BigDecimal("1100"))
+                        .stock(12)
+                        .imageUrl("https://images-na.ssl-images-amazon.com/images/I/41xShlnTZTL._SX374_BO1,204,203,200_.jpg")
+                        .categoryId(categoryMap.get("Technology"))
+                        .sellerEmail("seller2@ecomica.com")
+                        .active(true)
+                        .moderationStatus("APPROVED")
+                        .createdAt(Instant.now())
+                        .build());
+                bookRepository.save(Book.builder()
+                        .title("The Silent Patient")
+                        .author("Alex Michaelides")
+                        .description("A psychological thriller with a gripping twist.")
+                        .price(new BigDecimal("540"))
+                        .stock(21)
+                        .imageUrl("https://images-na.ssl-images-amazon.com/images/I/81JJPDNlxSL.jpg")
+                        .categoryId(categoryMap.get("Novels"))
+                        .sellerEmail("seller2@ecomica.com")
                         .active(true)
                         .moderationStatus("APPROVED")
                         .createdAt(Instant.now())
                         .build());
             }
+
+            ensureSellerBook(
+                    "Deep Work",
+                    "seller2@ecomica.com",
+                    "Cal Newport",
+                    "Strategies for focused success in a distracted world.",
+                    new BigDecimal("720"),
+                    16,
+                    "https://images-na.ssl-images-amazon.com/images/I/71QKQ9mwV7L.jpg",
+                    categoryMap.get("Education"));
+            ensureSellerBook(
+                    "Clean Code",
+                    "seller2@ecomica.com",
+                    "Robert C. Martin",
+                    "A handbook of agile software craftsmanship.",
+                    new BigDecimal("1100"),
+                    12,
+                    "https://images-na.ssl-images-amazon.com/images/I/41xShlnTZTL._SX374_BO1,204,203,200_.jpg",
+                    categoryMap.get("Technology"));
+            ensureSellerBook(
+                    "The Silent Patient",
+                    "seller2@ecomica.com",
+                    "Alex Michaelides",
+                    "A psychological thriller with a gripping twist.",
+                    new BigDecimal("540"),
+                    21,
+                    "https://images-na.ssl-images-amazon.com/images/I/81JJPDNlxSL.jpg",
+                    categoryMap.get("Novels"));
         };
+    }
+
+    private void upsertDemoUser(String name, String email, String password, Role role) {
+        Optional<User> existing = userRepository.findByEmail(email);
+        User user = existing.orElseGet(() -> User.builder().createdAt(Instant.now()).build());
+        user.setName(name);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setRole(role);
+        user.setBlocked(false);
+        if (user.getCreatedAt() == null) {
+            user.setCreatedAt(Instant.now());
+        }
+        userRepository.save(user);
+    }
+
+    private void ensureSellerBook(
+            String title,
+            String sellerEmail,
+            String author,
+            String description,
+            BigDecimal price,
+            int stock,
+            String imageUrl,
+            String categoryId
+    ) {
+        List<Book> sellerBooks = bookRepository.findBySellerEmail(sellerEmail);
+        boolean exists = sellerBooks.stream().anyMatch(b -> title.equalsIgnoreCase(b.getTitle()));
+        if (exists) return;
+
+        bookRepository.save(Book.builder()
+                .title(title)
+                .author(author)
+                .description(description)
+                .price(price)
+                .stock(stock)
+                .imageUrl(imageUrl)
+                .categoryId(categoryId)
+                .sellerEmail(sellerEmail)
+                .active(true)
+                .moderationStatus("APPROVED")
+                .createdAt(Instant.now())
+                .build());
     }
 }

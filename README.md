@@ -126,8 +126,8 @@ Frontend default URL:
 
 ## Demo Credentials (Seeded)
 
-- Buyer: `buyer@ecomica.com` / `buyer123`
-- Seller: `seller@ecomica.com` / `seller123`
+- Buyer 2: `buyer2@ecomica.com` / `buyer234`
+- Seller 2: `seller2@ecomica.com` / `seller234`
 - Admin: `admin@ecomica.com` / `admin123`
 
 ## Key Frontend Routes

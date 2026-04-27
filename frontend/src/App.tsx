@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Link, Route, Routes, useNavigate, Navigate, useSearchParams, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 
-const api = axios.create({ baseURL: "http://localhost:8080/api" });
+const api = axios.create({ baseURL: "/api" });
 const FALLBACK_BOOK_IMAGE = "https://images-na.ssl-images-amazon.com/images/I/81-349iYbfL._AC_UF1000,1000_QL80_.jpg";
 
 type Role = "BUYER" | "SELLER" | "ADMIN";
@@ -44,7 +44,28 @@ type SellerAnalytics = {
 };
 type AdminUser = { id: string; name: string; email: string; role: string; blocked?: boolean };
 type Toast = { type: "success" | "error"; text: string };
+type PaymentMethod = {
+  id: string;
+  type: "CARD" | "UPI";
+  label?: string;
+  provider?: string;
+  cardLast4?: string;
+  upiId?: string;
+  default?: boolean;
+};
+type ProfileInfo = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  phone?: string;
+  avatarUrl?: string;
+};
 const TOAST_DURATION_MS = 2200;
+
+function getErrorMessage(err: any, fallback: string) {
+  return err?.response?.data?.message || err?.message || fallback;
+}
 
 function SafeImage({ src, alt, className }: { src?: string; alt: string; className?: string }) {
   return (
@@ -250,6 +271,7 @@ function BuyerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast: 
     <div className="dashboardHeader">
       <h2>Buyer Dashboard</h2>
       <div className="row">
+        <Link to="/buyer/profile"><button className="secondary">Profile</button></Link>
         <Link to="/buyer/cart"><button>Cart & Payment</button></Link>
         <Link to="/buyer/orders"><button className="secondary">Orders</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
@@ -415,24 +437,38 @@ function BookDetails({ onLogout, onToast }: { onLogout: () => void; onToast: (to
 function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [analytics, setAnalytics] = useState<SellerAnalytics | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState("399");
+  const [stock, setStock] = useState("20");
   const [imageUrl, setImageUrl] = useState("");
   const [description, setDescription] = useState("");
 
   const load = async () => {
-    const [booksRes, analyticsRes] = await Promise.all([api.get("/seller/books"), api.get("/seller/analytics")]);
-    setBooks(booksRes.data);
-    setAnalytics(analyticsRes.data);
+    try {
+      const [booksRes, analyticsRes] = await Promise.all([api.get("/seller/books"), api.get("/seller/analytics")]);
+      setBooks(booksRes.data);
+      setAnalytics(analyticsRes.data);
+      setLoadError("");
+    } catch (err: any) {
+      const msg = getErrorMessage(err, "Could not load seller data.");
+      setLoadError(msg);
+      onToast({ type: "error", text: msg });
+    }
   };
   useEffect(() => { load(); }, []);
 
   return <div className="page sellerTheme modernDash">
     <div className="dashboardHeader">
       <h2>Seller Dashboard</h2>
-      <button className="secondary" onClick={onLogout}>Logout</button>
+      <div className="row">
+        <Link to="/seller/profile"><button className="secondary">Profile</button></Link>
+        <button className="secondary" onClick={load}>Reload</button>
+        <button className="secondary" onClick={onLogout}>Logout</button>
+      </div>
     </div>
+    {loadError && <p className="errorText">Seller data load failed: {loadError}</p>}
     <div className="landingGrid">
       <div className="productCard">
         <h3>Listed Books</h3>
@@ -447,24 +483,45 @@ function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast:
         <p className="price">Rs. {Number(analytics?.totalRevenue ?? 0).toFixed(0)}</p>
       </div>
     </div>
-    <form className="searchCard" onSubmit={async (e) => {
+    <form className="searchCard sellerCreateForm" onSubmit={async (e) => {
       e.preventDefault();
+      const numericPrice = Number(price);
+      const numericStock = Number(stock);
+      if (!title.trim() || !author.trim() || Number.isNaN(numericPrice) || numericPrice <= 0) {
+        onToast({ type: "error", text: "Enter valid title, author and price." });
+        return;
+      }
       try {
-        await api.post("/books", { title, author, price: Number(price), stock: 20, imageUrl, description, active: true });
-        setTitle(""); setAuthor(""); setPrice(""); setImageUrl(""); setDescription("");
+        await api.post("/books", {
+          title: title.trim(),
+          author: author.trim(),
+          price: numericPrice,
+          stock: Number.isNaN(numericStock) ? 20 : Math.max(0, numericStock),
+          imageUrl: imageUrl.trim(),
+          description: description.trim(),
+          active: true
+        });
+        setTitle("");
+        setAuthor("");
+        setPrice("399");
+        setStock("20");
+        setImageUrl("");
+        setDescription("");
         onToast({ type: "success", text: "Book submitted for moderation." });
         load();
-      } catch {
-        onToast({ type: "error", text: "Could not create book listing." });
+      } catch (err: any) {
+        onToast({ type: "error", text: getErrorMessage(err, "Could not create book listing.") });
       }
     }}>
       <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Book title" />
       <input required value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author" />
-      <input required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" />
+      <input required type="number" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (Rs.)" />
+      <input type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Stock" />
       <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" />
       <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
       <button type="submit">Add Book</button>
     </form>
+    <p className="muted sellerHint">Tip: new books are saved and shown here immediately, but appear in buyer catalog after admin approval.</p>
     <div className="detailSection">
       <h3>Top Selling Books</h3>
       {(analytics?.topBooks ?? []).map((tb) => <div className="listRow" key={tb.bookId}>
@@ -480,18 +537,242 @@ function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast:
         <span className="errorText">Stock: {ls.stock}</span>
       </div>)}
     </div>
+    <div className="detailSection">
+      <h3>Your Listings</h3>
+      {books.length === 0 && <p className="muted">No books yet. Add your first listing above.</p>}
+    </div>
     {books.map((b) => <div className="listRow" key={b.id}>
-      <span>{b.title} - Rs. {b.price}</span>
-      <button onClick={async () => {
-        try {
-          await api.delete(`/books/${b.id}`);
-          onToast({ type: "success", text: "Book deleted." });
-          load();
-        } catch {
-          onToast({ type: "error", text: "Could not delete book." });
-        }
-      }}>Delete</button>
+      <div>
+        <strong>{b.title}</strong>
+        <div className="muted">by {b.author} • Rs. {b.price}</div>
+      </div>
+      <div className="row">
+        <span className={b.moderationStatus === "APPROVED" ? "successText" : b.moderationStatus === "REJECTED" ? "errorText" : "muted"}>
+          {b.moderationStatus || "PENDING"}
+        </span>
+        <button onClick={async () => {
+          try {
+            await api.delete(`/books/${b.id}`);
+            onToast({ type: "success", text: "Book deleted." });
+            load();
+          } catch (err: any) {
+            onToast({ type: "error", text: getErrorMessage(err, "Could not delete book.") });
+          }
+        }}>Delete</button>
+      </div>
     </div>)}
+  </div>;
+}
+
+function PaymentMethodsManager({ onToast }: { onToast: (toast: Toast) => void }) {
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [type, setType] = useState<"CARD" | "UPI">("CARD");
+  const [label, setLabel] = useState("");
+  const [provider, setProvider] = useState("");
+  const [cardLast4, setCardLast4] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [isDefault, setIsDefault] = useState(false);
+
+  async function loadMethods() {
+    const { data } = await api.get("/payment-methods");
+    setMethods(data);
+  }
+  useEffect(() => { loadMethods(); }, []);
+
+  async function saveMethod(e: FormEvent) {
+    e.preventDefault();
+    if (type === "CARD" && cardLast4.trim().length !== 4) {
+      onToast({ type: "error", text: "Card last 4 digits required." });
+      return;
+    }
+    if (type === "UPI" && !upiId.trim()) {
+      onToast({ type: "error", text: "UPI ID is required." });
+      return;
+    }
+    await api.post("/payment-methods", {
+      type,
+      label: label.trim(),
+      provider: provider.trim(),
+      cardLast4: type === "CARD" ? cardLast4.trim() : "",
+      upiId: type === "UPI" ? upiId.trim() : "",
+      default: isDefault
+    });
+    setLabel("");
+    setProvider("");
+    setCardLast4("");
+    setUpiId("");
+    setIsDefault(false);
+    onToast({ type: "success", text: "Payment method saved." });
+    loadMethods();
+  }
+
+  return <>
+    <div className="detailSection">
+      <h3>Saved Payment Methods</h3>
+      {methods.length === 0 && <p className="muted">No saved payment methods yet.</p>}
+      {methods.map((m) => <div key={m.id} className="listRow">
+        <span>
+          {m.type === "CARD" ? `Card •••• ${m.cardLast4 || "----"}` : `UPI • ${m.upiId || "-"}`}
+          {" "}• {m.provider || "Generic"} {m.label ? `(${m.label})` : ""}
+        </span>
+        <div className="row">
+          {m.default ? <span className="successText">Default</span> : <button className="secondary" onClick={async () => {
+            await api.patch(`/payment-methods/${m.id}/default`);
+            loadMethods();
+            onToast({ type: "success", text: "Default payment method updated." });
+          }}>Set Default</button>}
+          <button className="secondary" onClick={async () => {
+            await api.delete(`/payment-methods/${m.id}`);
+            loadMethods();
+            onToast({ type: "success", text: "Payment method removed." });
+          }}>Delete</button>
+        </div>
+      </div>)}
+    </div>
+    <form className="searchCard" onSubmit={saveMethod}>
+      <select value={type} onChange={(e) => setType(e.target.value as "CARD" | "UPI")}>
+        <option value="CARD">Card</option>
+        <option value="UPI">UPI</option>
+      </select>
+      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (Home / Work)" />
+      <input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Provider (Visa / GPay)" />
+      {type === "CARD" ? (
+        <input value={cardLast4} onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="Last 4 digits" />
+      ) : (
+        <input value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="UPI ID (name@bank)" />
+      )}
+      <label className="muted"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default</label>
+      <button type="submit">Save Method</button>
+    </form>
+  </>;
+}
+
+function BuyerProfile({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
+  const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [wishlist, setWishlist] = useState<any[]>([]);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  async function load() {
+    const [profileRes, ordersRes, wishlistRes] = await Promise.all([
+      api.get("/profile/me"),
+      api.get("/orders"),
+      api.get("/wishlist")
+    ]);
+    setProfile(profileRes.data);
+    setName(profileRes.data?.name || "");
+    setPhone(profileRes.data?.phone || "");
+    setAvatarUrl(profileRes.data?.avatarUrl || "");
+    setOrders(ordersRes.data || []);
+    setWishlist(wishlistRes.data || []);
+  }
+  useEffect(() => { load(); }, []);
+
+  return <div className="page buyerTheme modernDash">
+    <div className="dashboardHeader">
+      <h2>Buyer Profile</h2>
+      <div className="row">
+        <Link to="/buyer/dashboard"><button className="secondary">Back</button></Link>
+        <button className="secondary" onClick={onLogout}>Logout</button>
+      </div>
+    </div>
+    <div className="profileGrid">
+      <div className="detailSection">
+        <h3>Account Overview</h3>
+        <div className="profileHeader">
+          <SafeImage src={avatarUrl || profile?.avatarUrl} alt={profile?.name || "Buyer"} className="avatar" />
+          <div>
+            <strong>{profile?.name || "Buyer"}</strong>
+            <div className="muted">{profile?.email}</div>
+            <div className="muted">Prime Reader Tier • Free delivery above Rs. 999</div>
+          </div>
+        </div>
+        <form className="searchCard" onSubmit={async (e) => {
+          e.preventDefault();
+          await api.patch("/profile/me", { name, phone, avatarUrl });
+          onToast({ type: "success", text: "Profile updated." });
+          load();
+        }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
+          <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Avatar URL" />
+          <button type="submit">Save Profile</button>
+        </form>
+      </div>
+      <div className="detailSection">
+        <h3>Amazon/Daraz Style Quick Stats</h3>
+        <div className="listRow"><span>Orders placed</span><strong>{orders.length}</strong></div>
+        <div className="listRow"><span>Wishlist items</span><strong>{wishlist.length}</strong></div>
+        <div className="listRow"><span>Today's Offer</span><strong>15% off on Education books</strong></div>
+        <div className="listRow"><span>Fast Delivery Benefit</span><strong>Eligible</strong></div>
+      </div>
+    </div>
+    <PaymentMethodsManager onToast={onToast} />
+  </div>;
+}
+
+function SellerProfile({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
+  const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [analytics, setAnalytics] = useState<SellerAnalytics | null>(null);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  async function load() {
+    const [profileRes, analyticsRes] = await Promise.all([
+      api.get("/profile/me"),
+      api.get("/seller/analytics")
+    ]);
+    setProfile(profileRes.data);
+    setName(profileRes.data?.name || "");
+    setPhone(profileRes.data?.phone || "");
+    setAvatarUrl(profileRes.data?.avatarUrl || "");
+    setAnalytics(analyticsRes.data);
+  }
+  useEffect(() => { load(); }, []);
+
+  return <div className="page sellerTheme modernDash">
+    <div className="dashboardHeader">
+      <h2>Seller Profile</h2>
+      <div className="row">
+        <Link to="/seller/dashboard"><button className="secondary">Back</button></Link>
+        <button className="secondary" onClick={onLogout}>Logout</button>
+      </div>
+    </div>
+    <div className="profileGrid">
+      <div className="detailSection">
+        <h3>Store Profile</h3>
+        <div className="profileHeader">
+          <SafeImage src={avatarUrl || profile?.avatarUrl} alt={profile?.name || "Seller"} className="avatar" />
+          <div>
+            <strong>{profile?.name || "Seller"}</strong>
+            <div className="muted">{profile?.email}</div>
+            <div className="muted">Marketplace Seller Level: Gold</div>
+          </div>
+        </div>
+        <form className="searchCard" onSubmit={async (e) => {
+          e.preventDefault();
+          await api.patch("/profile/me", { name, phone, avatarUrl });
+          onToast({ type: "success", text: "Seller profile updated." });
+          load();
+        }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Store / owner name" />
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Support phone" />
+          <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Store logo URL" />
+          <button type="submit">Save Profile</button>
+        </form>
+      </div>
+      <div className="detailSection">
+        <h3>Seller Performance</h3>
+        <div className="listRow"><span>Total Units Sold</span><strong>{analytics?.totalSoldUnits ?? 0}</strong></div>
+        <div className="listRow"><span>Total Revenue</span><strong>Rs. {Number(analytics?.totalRevenue ?? 0).toFixed(0)}</strong></div>
+        <div className="listRow"><span>Low Stock SKUs</span><strong>{analytics?.lowStock?.length ?? 0}</strong></div>
+        <div className="listRow"><span>Promotion Suggestion</span><strong>Enable weekend flash deal</strong></div>
+      </div>
+    </div>
+    <PaymentMethodsManager onToast={onToast} />
   </div>;
 }
 
@@ -869,21 +1150,22 @@ function Login({ onLogin, onToast }: { onLogin: (user: SessionUser) => void; onT
   async function submit(e: FormEvent) {
     e.preventDefault();
     try {
-      const { data } = await api.post("/auth/login", { email, password });
+      const emailValue = email.trim();
+      const { data } = await api.post("/auth/login", { email: emailValue, password });
       setToken(data.token);
-      const nextUser = { role: normalizeRole(data.role), name: data.name, email: data.email };
+      const nextUser = { role: normalizeRole(data.role), name: data.name, email: data.email || emailValue };
       localStorage.setItem("user", JSON.stringify(nextUser));
       onLogin(nextUser);
       const redirect = searchParams.get("redirect") || "";
-      const canUseBuyerRedirect = (nextUser.role === "BUYER" || nextUser.role === "ADMIN") && redirect.startsWith("/buyer/");
-      const canUseSellerRedirect = (nextUser.role === "SELLER" || nextUser.role === "ADMIN") && redirect.startsWith("/seller/");
+      const canUseBuyerRedirect = nextUser.role === "BUYER" && redirect.startsWith("/buyer/");
+      const canUseSellerRedirect = nextUser.role === "SELLER" && redirect.startsWith("/seller/");
       const canUseAdminRedirect = nextUser.role === "ADMIN" && redirect.startsWith("/admin/");
-      if (redirect && (canUseBuyerRedirect || canUseSellerRedirect || canUseAdminRedirect)) {
+      if (nextUser.role === "ADMIN") {
+        nav("/admin/dashboard");
+      } else if (redirect && (canUseBuyerRedirect || canUseSellerRedirect || canUseAdminRedirect)) {
         nav(redirect);
       } else if (nextUser.role === "SELLER") {
         nav("/seller/dashboard");
-      } else if (nextUser.role === "ADMIN") {
-        nav("/admin/dashboard");
       } else {
         nav("/buyer/dashboard");
       }
@@ -906,8 +1188,8 @@ function Login({ onLogin, onToast }: { onLogin: (user: SessionUser) => void; onT
       <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
       <button type="submit">Login</button>
       {error && <span className="errorText">{error}</span>}
-      <span className="muted">Demo buyer: buyer@ecomica.com / buyer123</span>
-      <span className="muted">Demo seller: seller@ecomica.com / seller123</span>
+      <span className="muted">Demo buyer 2: buyer2@ecomica.com / buyer234</span>
+      <span className="muted">Demo seller 2: seller2@ecomica.com / seller234</span>
       <span className="muted">Demo admin: admin@ecomica.com / admin123</span>
     </form>
   </div>;
@@ -924,7 +1206,7 @@ function Register({ onToast }: { onToast: (toast: Toast) => void }) {
   async function submit(e: FormEvent) {
     e.preventDefault();
     try {
-      await api.post("/auth/register", { name, email, password, role });
+      await api.post("/auth/register", { name: name.trim(), email: email.trim(), password, role });
       setOk("Registration successful. Please login.");
       setError("");
       onToast({ type: "success", text: "Registration successful. Please login." });
@@ -1014,10 +1296,12 @@ export default function App() {
       <Route path="/login" element={<Login onLogin={setUser} onToast={setToast} />} />
       <Route path="/register" element={<Register onToast={setToast} />} />
       <Route path="/buyer/dashboard" element={<BuyerGuard><BuyerDashboard onLogout={logout} onToast={setToast} /></BuyerGuard>} />
+      <Route path="/buyer/profile" element={<BuyerGuard><BuyerProfile onLogout={logout} onToast={setToast} /></BuyerGuard>} />
       <Route path="/buyer/book/:id" element={<BuyerGuard><BookDetails onLogout={logout} onToast={setToast} /></BuyerGuard>} />
       <Route path="/buyer/cart" element={<BuyerGuard><CartAndPayment onLogout={logout} onToast={setToast} /></BuyerGuard>} />
       <Route path="/buyer/orders" element={<BuyerGuard><Orders onLogout={logout} /></BuyerGuard>} />
       <Route path="/seller/dashboard" element={<SellerGuard><SellerDashboard onLogout={logout} onToast={setToast} /></SellerGuard>} />
+      <Route path="/seller/profile" element={<SellerGuard><SellerProfile onLogout={logout} onToast={setToast} /></SellerGuard>} />
       <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard onLogout={logout} onToast={setToast} /></AdminGuard>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

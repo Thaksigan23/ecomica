@@ -31,16 +31,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
-        String email = jwtService.extractUsername(token);
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            String role = jwtService.extractRole(token);
-            UserDetails userDetails = User.withUsername(email).password("").authorities("ROLE_" + role).build();
-            if (jwtService.isValid(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            String email = jwtService.extractUsername(token);
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                String role = jwtService.extractRole(token);
+                UserDetails userDetails = User.withUsername(email).password("").authorities("ROLE_" + role).build();
+                if (jwtService.isValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (RuntimeException ignored) {
+            // Ignore malformed/expired/signature-mismatch token and continue unauthenticated.
         }
         filterChain.doFilter(request, response);
     }

@@ -14,17 +14,17 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "users")
-public class User {
+@Document(collection = "payment_methods")
+public class PaymentMethod {
     @Id
     private String id;
-    private String name;
-    @Indexed(unique = true)
-    private String email;
-    private String phone;
-    private String avatarUrl;
-    private String passwordHash;
-    private Role role;
-    private boolean blocked;
+    @Indexed
+    private String userId;
+    private String type; // CARD or UPI
+    private String label;
+    private String provider;
+    private String cardLast4;
+    private String upiId;
+    private boolean isDefault;
     private Instant createdAt;
 }
