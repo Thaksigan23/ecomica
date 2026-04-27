@@ -12,6 +12,8 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 - Add/remove cart items and update quantities
 - Wishlist support
 - Address book management
+- Buyer profile page with editable account info
+- Save/manage payment methods (Card and UPI)
 - Multi-step checkout (Address -> Payment -> Review)
 - Order history with status timeline
 
@@ -19,6 +21,8 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 - Register/login as seller
 - Seller dashboard with separate visual theme
 - Add and delete own book listings
+- Seller profile page with store/account details
+- Save/manage payment methods (Card and UPI)
 - Seller analytics:
   - listed books
   - total units sold
@@ -44,6 +48,8 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 - Landing product cards linking to filtered buyer views
 - Role-based route guards with redirect-after-login
 - Floating animated toast notifications across app
+- Modernized seller dashboard with listing status badges and reload
+- Vite `/api` proxy for stable local frontend-backend connectivity
 
 ## Tech Stack
 
@@ -124,6 +130,19 @@ Frontend default URL:
 
 - `http://localhost:5173`
 
+## Dev Networking (Important)
+
+Frontend uses relative API base `/api` and Vite proxy config:
+
+- `frontend/vite.config.ts` -> `/api` proxies to `http://127.0.0.1:8080`
+
+If you update Vite config, restart frontend dev server:
+
+```bash
+cd frontend
+npm run dev
+```
+
 ## Demo Credentials (Seeded)
 
 - Buyer 2: `buyer2@ecomica.com` / `buyer234`
@@ -136,10 +155,12 @@ Frontend default URL:
 - `/login` - login
 - `/register` - register
 - `/buyer/dashboard`
+- `/buyer/profile`
 - `/buyer/book/:id`
 - `/buyer/cart`
 - `/buyer/orders`
 - `/seller/dashboard`
+- `/seller/profile`
 - `/admin/dashboard`
 
 ## Key API Groups
@@ -152,6 +173,8 @@ Frontend default URL:
 - `/api/reviews/*` - reviews
 - `/api/wishlist/*` - wishlist
 - `/api/addresses/*` - address book
+- `/api/profile/*` - profile view/update
+- `/api/payment-methods/*` - saved payment methods
 - `/api/seller/*` - seller books/analytics
 - `/api/admin/*` - admin users/orders/books moderation
 
@@ -161,6 +184,7 @@ Frontend default URL:
 - New seller books are submitted with pending moderation.
 - Blocked users cannot login.
 - JWT is used for auth and role-based access control.
+- JWT filter ignores invalid/stale tokens gracefully to avoid login lockout.
 
 ## Author
 
