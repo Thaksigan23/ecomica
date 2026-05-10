@@ -1,3 +1,7 @@
+//shared.tsx file
+// Import axios for making HTTP API requests
+// Import ReactNode type for typing children props in components
+
 import axios from "axios";
 import type { ReactNode } from "react";
 

@@ -1,3 +1,5 @@
+// Toast state to show success/error messages
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TOAST_DURATION_MS, getStoredUser, setToken } from "./app/shared";
@@ -14,6 +16,8 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(null), TOAST_DURATION_MS);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+
 
   function logout() {
     setToken(null);
