@@ -65,7 +65,7 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 - Spring Boot 3
 - Spring Security (JWT)
 - Spring Data MongoDB
-- Gradle
+- Maven
 
 ### Database
 - MongoDB
@@ -83,6 +83,7 @@ ecomica3/
 - Node.js 18+
 - npm
 - Java 21
+- Maven 3.9+ (backend build and `spring-boot:run`)
 - MongoDB (local or cloud URI)
 
 ## Environment Configuration
@@ -111,7 +112,7 @@ jwt.expiration-ms=86400000
 
 ```bash
 cd backend
-./gradlew bootRun
+mvn spring-boot:run
 ```
 
 Backend default URL:
