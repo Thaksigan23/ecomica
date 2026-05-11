@@ -23,6 +23,18 @@ public class User {
     private String email;
     private String phone;
     private String avatarUrl;
+    /** Short reader bio (buyer-focused; editable on buyer profile). */
+    private String bio;
+    /** Comma-separated genres for recommendations copy (buyer). */
+    private String favoriteGenres;
+    /** Email / offers opt-in (buyer). */
+    private Boolean newsletterOptIn;
+    /** Public-facing shop title (seller). */
+    private String storeName;
+    /** Longer storefront story (seller). */
+    private String storeDescription;
+    /** Store site or social URL (seller). */
+    private String storeWebsiteUrl;
     private String passwordHash;
     private Role role;
     private boolean blocked;

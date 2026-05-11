@@ -91,20 +91,28 @@ ecomica3/
 Backend config is in:
 
 - `backend/src/main/resources/application.properties`
+- `backend/src/main/resources/application-prod.properties` (when `spring.profiles.active=prod`)
 
-Set/update:
+Set/update (names match Spring Boot binding):
 
-- `spring.data.mongodb.uri`
-- `jwt.secret`
-- `jwt.expiration-ms`
+| Purpose | Property or env |
+|--------|-------------------|
+| MongoDB URI | `spring.data.mongodb.uri` or environment variable `MONGO_URI` |
+| JWT signing secret | `app.jwt.secret` or `JWT_SECRET` |
+| JWT lifetime (ms) | `app.jwt.expiration-ms` |
+| Demo seed data on startup | `app.seed.enabled` (`true` by default locally; `false` when profile `prod` is active) |
+| Seeded admin login (optional) | `ADMIN_EMAIL`, `ADMIN_PASSWORD` |
 
-Example:
+Example for local `application.properties` overrides:
 
 ```properties
-spring.data.mongodb.uri=mongodb://localhost:27017/ecomica
-jwt.secret=change-me-to-a-long-random-secret
-jwt.expiration-ms=86400000
+spring.data.mongodb.uri=mongodb://localhost:27017/ecomica3
+app.jwt.secret=change-me-to-a-long-random-secret-at-least-32-chars
+app.jwt.expiration-ms=86400000
+app.seed.enabled=true
 ```
+
+Production: run with `spring.profiles.active=prod`, set strong `JWT_SECRET`, and keep `app.seed.enabled=false` so demo users are not created.
 
 ## Run Locally
 
@@ -181,6 +189,7 @@ npm run dev
 
 ## Notes
 
+- Demo seeding (`app.seed.enabled`) is on by default for local development; the `prod` profile turns it off.
 - Public book listing only shows approved + active books.
 - New seller books are submitted with pending moderation.
 - Blocked users cannot login.

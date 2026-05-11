@@ -23,6 +23,11 @@ export type Book = {
   sellerEmail?: string;
   moderationStatus?: string;
   active?: boolean;
+  /** Public GET /books/:id only — seller storefront from profile */
+  sellerStoreName?: string | null;
+  sellerStoreDescription?: string | null;
+  sellerStoreWebsiteUrl?: string | null;
+  sellerLogoUrl?: string | null;
 };
 export type Category = { id: string; name: string };
 export type CartItem = { id: string; bookId: string; quantity: number };
@@ -63,12 +68,38 @@ export type ProfileInfo = {
   role: Role;
   phone?: string;
   avatarUrl?: string;
+  createdAt?: string;
+  bio?: string;
+  favoriteGenres?: string;
+  newsletterOptIn?: boolean;
+  storeName?: string;
+  storeDescription?: string;
+  storeWebsiteUrl?: string;
 };
 
 export type GuardProps = { children: ReactNode; allow: Role[] };
 
-export function getErrorMessage(err: any, fallback: string) {
-  return err?.response?.data?.message || err?.message || fallback;
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const res = (err as { response?: { data?: unknown; status?: number } }).response;
+    const data = res?.data;
+    if (data && typeof data === "object") {
+      const o = data as Record<string, unknown>;
+      if (typeof o.message === "string") return o.message;
+      if (typeof o.detail === "string") return o.detail;
+      if (typeof o.error === "string" && typeof o.status === "number") {
+        return `${o.error} (${o.status})`;
+      }
+    }
+    if (!res && "message" in err) {
+      const msg = String((err as { message?: unknown }).message ?? "");
+      if (msg === "Network Error" || msg.includes("ECONNREFUSED")) {
+        return "Cannot reach API. Start the backend on port 8080 (and MongoDB), then use Vite dev so /api proxies correctly.";
+      }
+    }
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }
 
 export function normalizeRole(rawRole: string): Role {

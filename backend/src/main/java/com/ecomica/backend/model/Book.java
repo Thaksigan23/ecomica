@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -34,4 +35,14 @@ public class Book {
     private boolean active;
     private String moderationStatus;
     private Instant createdAt;
+
+    /** Filled on public book-by-id only; not stored in MongoDB. */
+    @Transient
+    private String sellerStoreName;
+    @Transient
+    private String sellerStoreDescription;
+    @Transient
+    private String sellerStoreWebsiteUrl;
+    @Transient
+    private String sellerLogoUrl;
 }

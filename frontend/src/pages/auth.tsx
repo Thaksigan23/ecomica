@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, normalizeRole, SafeImage, setToken } from "../app/shared";
+import { api, getErrorMessage, normalizeRole, SafeImage, setToken } from "../app/shared";
 import type { Role, SessionUser, Toast } from "../app/shared";
 
 export function Landing() {
@@ -159,18 +159,18 @@ export function Login({ onLogin, onToast }: { onLogin: (user: SessionUser) => vo
       }
       setError("");
       onToast({ type: "success", text: "Login successful." });
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || "Login failed. Check backend is running and credentials are correct.";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Login failed. Check backend is running and credentials are correct.");
       setError(errorMessage);
       onToast({ type: "error", text: errorMessage });
     }
   }
-  return <div className="page authPage">
+  return <div className="page authPage authShell">
     <div className="authTopBar">
-      <Link to="/"><button className="secondary">← Back to Landing</button></Link>
+      <Link to="/"><button className="secondary">← Back to landing</button></Link>
     </div>
     <form className="formCard modernAuthCard" onSubmit={submit}>
-      <h2>Sign In</h2>
+      <h2>Sign in</h2>
       <p className="muted">Access buyer, seller, or admin dashboards.</p>
       <input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
       <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
@@ -200,20 +200,20 @@ export function Register({ onToast }: { onToast: (toast: Toast) => void }) {
       setError("");
       onToast({ type: "success", text: "Registration successful. Please login." });
       nav("/login");
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || "Registration failed. Email may already be used.";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Registration failed. Email may already be used.");
       setError(errorMessage);
       setOk("");
       onToast({ type: "error", text: errorMessage });
     }
   }
 
-  return <div className="page authPage">
+  return <div className="page authPage authShell">
     <div className="authTopBar">
-      <Link to="/"><button className="secondary">← Back to Landing</button></Link>
+      <Link to="/"><button className="secondary">← Back to landing</button></Link>
     </div>
     <form className="formCard modernAuthCard" onSubmit={submit}>
-      <h2>Create Account</h2>
+      <h2>Create account</h2>
       <p className="muted">Register as buyer or seller in seconds.</p>
       <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
       <input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />

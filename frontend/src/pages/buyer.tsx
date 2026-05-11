@@ -11,6 +11,9 @@ export function BuyerDashboard({ onLogout, onToast }: { onLogout: () => void; on
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [searchParams] = useSearchParams();
+  const [cartCount, setCartCount] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
 
   async function load() {
     const queryFromUrl = searchParams.get("q") || "";
@@ -38,6 +41,32 @@ export function BuyerDashboard({ onLogout, onToast }: { onLogout: () => void; on
   }
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [cartRes, orderRes, wishRes] = await Promise.all([
+          api.get("/cart"),
+          api.get("/orders"),
+          api.get("/wishlist")
+        ]);
+        if (cancelled) return;
+        setCartCount((cartRes.data as CartItem[])?.length ?? 0);
+        setOrderCount((orderRes.data as { id?: string }[])?.length ?? 0);
+        setWishlistCount((wishRes.data as { id?: string }[])?.length ?? 0);
+      } catch {
+        if (!cancelled) {
+          setCartCount(0);
+          setOrderCount(0);
+          setWishlistCount(0);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function addToCart(bookId: string) {
     try {
       await api.post("/cart", { bookId, quantity: 1 });
@@ -58,36 +87,69 @@ export function BuyerDashboard({ onLogout, onToast }: { onLogout: () => void; on
 
   return <div className="page buyerTheme modernDash">
     <div className="dashboardHeader">
-      <h2>Buyer Dashboard</h2>
+      <div>
+        <h2>Buyer dashboard</h2>
+        <p className="dashSubhead">Search the catalogue, manage your cart, and track orders in one calm workspace.</p>
+      </div>
       <div className="row">
         <Link to="/buyer/profile"><button className="secondary">Profile</button></Link>
-        <Link to="/buyer/cart"><button>Cart & Payment</button></Link>
+        <Link to="/buyer/cart"><button>Cart &amp; payment</button></Link>
         <Link to="/buyer/orders"><button className="secondary">Orders</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
       </div>
     </div>
-    <div className="searchCard">
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search books" />
-      <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-        <option value="">All Categories</option>
-        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-      <button onClick={load}>Search</button>
+
+    <div className="dashStatGrid">
+      <div className="statTile">
+        <h3>In this view</h3>
+        <p className="price">{books.length}</p>
+        <p className="statHint">Titles matching your filters</p>
+      </div>
+      <div className="statTile">
+        <h3>Cart lines</h3>
+        <p className="price">{cartCount}</p>
+        <p className="statHint">Items ready for checkout</p>
+      </div>
+      <div className="statTile">
+        <h3>Orders</h3>
+        <p className="price">{orderCount}</p>
+        <p className="statHint">Your purchase history</p>
+      </div>
+      <div className="statTile">
+        <h3>Wishlist</h3>
+        <p className="price">{wishlistCount}</p>
+        <p className="statHint">Saved for later</p>
+      </div>
     </div>
-    <div className="grid">
-      {books.map((b) => <div key={b.id} className="productCard">
-        <SafeImage src={b.imageUrl} alt={b.title} />
-        <h3>{b.title}</h3>
-        <p className="author">by {b.author}</p>
-        <p className="price">Rs. {b.price}</p>
-        <p className="description">{b.description}</p>
-        <div className="row">
-          <Link to={`/buyer/book/${b.id}`}><button className="secondary">View Details</button></Link>
-          <button onClick={() => addToCart(b.id)}>Add to Cart</button>
-          <button className="secondary" onClick={() => addToWishlist(b.id)}>Wishlist</button>
-        </div>
-      </div>)}
-    </div>
+
+    <section className="dashPanel">
+      <div className="dashPanelHead">
+        <h3>Browse catalogue</h3>
+        <span className="muted">{categories.length} categories</span>
+      </div>
+      <div className="searchCard">
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search books" />
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="">All categories</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <button onClick={load}>Search</button>
+      </div>
+      <div className="grid">
+        {books.map((b) => <div key={b.id} className="productCard">
+          <SafeImage src={b.imageUrl} alt={b.title} />
+          <h3>{b.title}</h3>
+          <p className="author">by {b.author}</p>
+          <p className="price">Rs. {b.price}</p>
+          <p className="description">{b.description}</p>
+          <div className="row">
+            <Link to={`/buyer/book/${b.id}`}><button className="secondary">View details</button></Link>
+            <button onClick={() => addToCart(b.id)}>Add to cart</button>
+            <button className="secondary" onClick={() => addToWishlist(b.id)}>Wishlist</button>
+          </div>
+        </div>)}
+      </div>
+    </section>
   </div>;
 }
 
@@ -161,7 +223,10 @@ export function BookDetails({ onLogout, onToast }: { onLogout: () => void; onToa
 
   return <div className="page buyerTheme modernDash">
     <div className="dashboardHeader">
-      <h2>Book Details</h2>
+      <div>
+        <h2>Book details</h2>
+        <p className="dashSubhead">Reviews, seller story, and quick add to cart or wishlist.</p>
+      </div>
       <div className="row">
         <Link to="/buyer/dashboard"><button className="secondary">Back</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
@@ -183,6 +248,41 @@ export function BookDetails({ onLogout, onToast }: { onLogout: () => void; onToa
         </div>
       </div>
     </div>
+
+    {(book.sellerStoreName || book.sellerEmail) && (
+      <div className="detailSection bookSellerSection">
+        <h3>Sold by</h3>
+        <p className="muted smallPrint">This shop is run by an independent seller on Ecomica.</p>
+        <div className="storePreviewCard soldByCardNeutral">
+          <div className="storePreviewHeader">
+            <SafeImage src={book.sellerLogoUrl || book.imageUrl} alt="" className="storePreviewLogo soldByLogoRing" />
+            <div>
+              <div className="storePreviewTitle soldByTitle">{book.sellerStoreName || book.sellerEmail}</div>
+              <div className="muted smallPrint">{book.sellerEmail}</div>
+            </div>
+          </div>
+          {book.sellerStoreDescription?.trim() ? (
+            <p className="storePreviewBody soldByBody">{book.sellerStoreDescription.trim()}</p>
+          ) : (
+            <p className="muted smallPrint">This seller has not added a storefront story yet.</p>
+          )}
+          {book.sellerStoreWebsiteUrl?.trim() ? (
+            <a
+              className="storePreviewLink soldByLink"
+              href={
+                book.sellerStoreWebsiteUrl.trim().startsWith("http")
+                  ? book.sellerStoreWebsiteUrl.trim()
+                  : `https://${book.sellerStoreWebsiteUrl.trim()}`
+              }
+              target="_blank"
+              rel="noreferrer"
+            >
+              Visit seller link →
+            </a>
+          ) : null}
+        </div>
+      </div>
+    )}
 
     <div className="detailSection">
       <h3>Write a review</h3>
@@ -223,13 +323,18 @@ export function BookDetails({ onLogout, onToast }: { onLogout: () => void; onToa
   </div>;
 }
 
+type OrderSummary = { id?: string; totalAmount?: number };
+
 export function BuyerProfile({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [wishlist, setWishlist] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [wishlist, setWishlist] = useState<{ id?: string }[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [bio, setBio] = useState("");
+  const [favoriteGenres, setFavoriteGenres] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
 
   async function load() {
     const [profileRes, ordersRes, wishlistRes] = await Promise.all([
@@ -237,58 +342,117 @@ export function BuyerProfile({ onLogout, onToast }: { onLogout: () => void; onTo
       api.get("/orders"),
       api.get("/wishlist")
     ]);
-    setProfile(profileRes.data);
-    setName(profileRes.data?.name || "");
-    setPhone(profileRes.data?.phone || "");
-    setAvatarUrl(profileRes.data?.avatarUrl || "");
+    const p = profileRes.data as ProfileInfo;
+    setProfile(p);
+    setName(p?.name || "");
+    setPhone(p?.phone || "");
+    setAvatarUrl(p?.avatarUrl || "");
+    setBio(p?.bio || "");
+    setFavoriteGenres(p?.favoriteGenres || "");
+    setNewsletterOptIn(Boolean(p?.newsletterOptIn));
     setOrders(ordersRes.data || []);
     setWishlist(wishlistRes.data || []);
   }
   useEffect(() => { load(); }, []);
 
+  const totalSpend = orders.reduce((sum, o) => sum + Number(o.totalAmount ?? 0), 0);
+  const memberSince =
+    profile?.createdAt && !Number.isNaN(Date.parse(profile.createdAt))
+      ? new Date(profile.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+      : "—";
+
   return <div className="page buyerTheme modernDash">
     <div className="dashboardHeader">
-      <h2>Buyer Profile</h2>
+      <div>
+        <h2>Buyer profile</h2>
+        <p className="dashSubhead">Account details, reader preferences, and payment methods.</p>
+      </div>
       <div className="row">
         <Link to="/buyer/dashboard"><button className="secondary">Back</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
       </div>
     </div>
-    <div className="profileGrid">
+    <form
+      className="profileGrid"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        try {
+          await api.patch("/profile/me", {
+            name,
+            phone,
+            avatarUrl,
+            bio,
+            favoriteGenres,
+            newsletterOptIn
+          });
+          onToast({ type: "success", text: "Profile updated." });
+          load();
+        } catch (err: unknown) {
+          onToast({ type: "error", text: getErrorMessage(err, "Could not update profile.") });
+        }
+      }}
+    >
       <div className="detailSection">
-        <h3>Account Overview</h3>
+        <h3>Account overview</h3>
         <div className="profileHeader">
           <SafeImage src={avatarUrl || profile?.avatarUrl} alt={profile?.name || "Buyer"} className="avatar" />
           <div>
             <strong>{profile?.name || "Buyer"}</strong>
             <div className="muted">{profile?.email}</div>
-            <div className="muted">Prime Reader Tier • Free delivery above Rs. 999</div>
+            <div className="muted">Member since {memberSince}</div>
+            <div className="muted">Prime Reader tier • Free delivery above Rs. 999</div>
           </div>
         </div>
-        <form className="searchCard" onSubmit={async (e) => {
-          e.preventDefault();
-          try {
-            await api.patch("/profile/me", { name, phone, avatarUrl });
-            onToast({ type: "success", text: "Profile updated." });
-            load();
-          } catch (err: any) {
-            onToast({ type: "error", text: getErrorMessage(err, "Could not update profile.") });
-          }
-        }}>
+        <div className="searchCard profileFormStack">
+          <label className="fieldLabel">Display name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
+          <label className="fieldLabel">Phone</label>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
-          <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Avatar URL" />
-          <button type="submit">Save Profile</button>
-        </form>
+          <label className="fieldLabel">Avatar image URL</label>
+          <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…" />
+        </div>
       </div>
       <div className="detailSection">
-        <h3>Amazon/Daraz Style Quick Stats</h3>
+        <h3>Shopping snapshot</h3>
         <div className="listRow"><span>Orders placed</span><strong>{orders.length}</strong></div>
+        <div className="listRow"><span>Estimated lifetime spend</span><strong>Rs. {totalSpend.toFixed(0)}</strong></div>
         <div className="listRow"><span>Wishlist items</span><strong>{wishlist.length}</strong></div>
-        <div className="listRow"><span>Today's Offer</span><strong>15% off on Education books</strong></div>
-        <div className="listRow"><span>Fast Delivery Benefit</span><strong>Eligible</strong></div>
+        <div className="listRow"><span>Deals for you</span><strong>15% off Education this week</strong></div>
+        <div className="listRow"><span>Fast delivery</span><strong>Eligible on Rs. 999+</strong></div>
+        <div className="profileQuickLinks">
+          <Link to="/buyer/orders"><button type="button" className="secondary">Order history</button></Link>
+          <Link to="/buyer/cart"><button type="button" className="secondary">Go to cart</button></Link>
+          <Link to="/buyer/dashboard"><button type="button" className="secondary">Browse books</button></Link>
+        </div>
       </div>
-    </div>
+      <div className="detailSection profileSpan2">
+        <h3>Reader profile & preferences</h3>
+        <p className="muted smallPrint">Tell us what you like — we use this for tailored picks and optional email offers.</p>
+        <div className="searchCard profileFormStack">
+          <label className="fieldLabel">About you</label>
+          <textarea
+            className="profileTextarea"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="A few lines about your reading taste, studies, or favorite authors…"
+            rows={4}
+            maxLength={600}
+          />
+          <label className="fieldLabel">Favorite genres (comma-separated)</label>
+          <input
+            value={favoriteGenres}
+            onChange={(e) => setFavoriteGenres(e.target.value)}
+            placeholder="Fiction, Manga, Exam prep, Self-help…"
+            maxLength={240}
+          />
+          <label className="checkRow">
+            <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} />
+            <span>Email me deals, restocks, and reading lists (optional)</span>
+          </label>
+        </div>
+        <button type="submit" className="profileSaveWide">Save all profile changes</button>
+      </div>
+    </form>
     <PaymentMethodsManager onToast={onToast} />
   </div>;
 }
@@ -380,7 +544,10 @@ export function CartAndPayment({ onLogout, onToast }: { onLogout: () => void; on
 
   return <div className="page buyerTheme modernDash">
     <div className="dashboardHeader">
-      <h2>Cart & Payment</h2>
+      <div>
+        <h2>Cart &amp; payment</h2>
+        <p className="dashSubhead">Review items, choose an address, then pay and place your order.</p>
+      </div>
       <div className="row">
         <Link to="/buyer/dashboard"><button className="secondary">Back</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
@@ -496,7 +663,10 @@ export function Orders({ onLogout }: { onLogout: () => void }) {
 
   return <div className="page buyerTheme modernDash">
     <div className="dashboardHeader">
-      <h2>Order History</h2>
+      <div>
+        <h2>Order history</h2>
+        <p className="dashSubhead">Track status from placed to delivered for every purchase.</p>
+      </div>
       <div className="row">
         <Link to="/buyer/dashboard"><button className="secondary">Back</button></Link>
         <button className="secondary" onClick={onLogout}>Logout</button>
