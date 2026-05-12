@@ -39,4 +39,6 @@ public class User {
     private Role role;
     private boolean blocked;
     private Instant createdAt;
+    /** Loyalty balance (demo: incremented on checkout) */
+    private Long loyaltyPoints;
 }

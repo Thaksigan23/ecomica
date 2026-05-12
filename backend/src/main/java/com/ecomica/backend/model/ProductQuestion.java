@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -14,16 +13,16 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "reviews")
-@CompoundIndex(def = "{'userId': 1, 'bookId': 1}", unique = true)
-public class Review {
+@Document(collection = "product_questions")
+public class ProductQuestion {
     @Id
     private String id;
-    private String userId;
     private String bookId;
-    private Integer rating;
-    private String comment;
+    private String askerUserId;
+    private String askerName;
+    private String question;
+    private String answer;
+    private String answeredBy;
     private Instant createdAt;
-    /** True if reviewer previously purchased this book (any delivered/placed order containing line). */
-    private Boolean verifiedPurchase;
+    private Instant answeredAt;
 }

@@ -54,16 +54,18 @@ export function PaymentMethodsManager({ onToast }: { onToast: (toast: Toast) => 
   }
 
   return <>
-    <div className="detailSection">
-      <h3>Saved Payment Methods</h3>
+    <section className="dashPanel paymentMethodsPanel">
+      <div className="dashPanelHead">
+        <h3>Saved payment methods</h3>
+      </div>
       {methods.length === 0 && <p className="muted">No saved payment methods yet.</p>}
-      {methods.map((m) => <div key={m.id} className="listRow">
+      {methods.map((m) => <div key={m.id} className="listRow modernDataRow">
         <span>
           {m.type === "CARD" ? `Card •••• ${m.cardLast4 || "----"}` : `UPI • ${m.upiId || "-"}`}
           {" "}• {m.provider || "Generic"} {m.label ? `(${m.label})` : ""}
         </span>
         <div className="row">
-          {m.default ? <span className="successText">Default</span> : <button className="secondary" onClick={async () => {
+          {m.default ? <span className="successText">Default</span> : <button type="button" className="secondary" onClick={async () => {
             try {
               await api.patch(`/payment-methods/${m.id}/default`);
               loadMethods();
@@ -72,7 +74,7 @@ export function PaymentMethodsManager({ onToast }: { onToast: (toast: Toast) => 
               onToast({ type: "error", text: getErrorMessage(err, "Could not set default payment method.") });
             }
           }}>Set Default</button>}
-          <button className="secondary" onClick={async () => {
+          <button type="button" className="secondary" onClick={async () => {
             try {
               await api.delete(`/payment-methods/${m.id}`);
               loadMethods();
@@ -83,8 +85,12 @@ export function PaymentMethodsManager({ onToast }: { onToast: (toast: Toast) => 
           }}>Delete</button>
         </div>
       </div>)}
-    </div>
-    <form className="searchCard" onSubmit={saveMethod}>
+    </section>
+    <section className="dashPanel paymentMethodsPanel">
+      <div className="dashPanelHead">
+        <h3>Add payment method</h3>
+      </div>
+      <form className="searchCard" onSubmit={saveMethod}>
       <select value={type} onChange={(e) => setType(e.target.value as "CARD" | "UPI")}>
         <option value="CARD">Card</option>
         <option value="UPI">UPI</option>
@@ -99,5 +105,6 @@ export function PaymentMethodsManager({ onToast }: { onToast: (toast: Toast) => 
       <label className="muted"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default</label>
       <button type="submit">Save Method</button>
     </form>
+    </section>
   </>;
 }

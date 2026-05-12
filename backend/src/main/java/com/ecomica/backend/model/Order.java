@@ -27,6 +27,12 @@ public class Order {
     private String paymentStatus;
     private String paymentReference;
     private BigDecimal totalAmount;
+    /** Sum of line merchandise before coupon */
+    private BigDecimal merchandiseSubtotal;
+    private BigDecimal discountAmount;
+    private BigDecimal taxAmount;
+    private BigDecimal shippingAmount;
+    private String couponCode;
     private List<OrderItem> items;
     private List<StatusEvent> statusHistory;
 

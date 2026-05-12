@@ -1,8 +1,10 @@
 package com.ecomica.backend.controller;
 
 import com.ecomica.backend.model.Book;
+import com.ecomica.backend.model.Order;
 import com.ecomica.backend.model.User;
 import com.ecomica.backend.repository.BookRepository;
+import com.ecomica.backend.repository.OrderRepository;
 import com.ecomica.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,8 +13,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -22,20 +27,64 @@ import java.util.stream.Collectors;
 public class BookController {
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @GetMapping
-    public List<Book> all(@RequestParam(required = false) String q, @RequestParam(required = false) String categoryId) {
+    public List<Book> all(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Boolean inStockOnly,
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false) String language
+    ) {
+        List<Book> raw;
         if (q != null && !q.isBlank()) {
-            return bookRepository.findByTitleContainingIgnoreCaseOrAuthorContainingIgnoreCase(q, q).stream()
-                    .filter(this::isPubliclyVisible)
-                    .collect(Collectors.toList());
+            raw = bookRepository.findByTitleContainingIgnoreCaseOrAuthorContainingIgnoreCase(q, q);
+        } else if (categoryId != null && !categoryId.isBlank()) {
+            raw = bookRepository.findByCategoryId(categoryId);
+        } else {
+            raw = bookRepository.findAll();
         }
-        if (categoryId != null && !categoryId.isBlank()) {
-            return bookRepository.findByCategoryId(categoryId).stream()
-                    .filter(this::isPubliclyVisible)
-                    .collect(Collectors.toList());
+        return raw.stream()
+                .filter(this::isPubliclyVisible)
+                .filter(b -> minPrice == null || b.getPrice() != null && b.getPrice().compareTo(minPrice) >= 0)
+                .filter(b -> maxPrice == null || b.getPrice() != null && b.getPrice().compareTo(maxPrice) <= 0)
+                .filter(b -> inStockOnly == null || !Boolean.TRUE.equals(inStockOnly)
+                        || b.getStock() != null && b.getStock() > 0)
+                .filter(b -> format == null || format.isBlank() || equalsIgnoreCase(b.getFormat(), format))
+                .filter(b -> language == null || language.isBlank() || equalsIgnoreCase(b.getLanguage(), language))
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}/also-bought")
+    public List<Book> alsoBought(@PathVariable String id) {
+        bookRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Book not found"));
+        Map<String, Integer> score = new HashMap<>();
+        for (Order order : orderRepository.findAll()) {
+            if (order.getItems() == null) {
+                continue;
+            }
+            boolean has = order.getItems().stream().anyMatch(i -> id.equals(i.getBookId()));
+            if (!has) {
+                continue;
+            }
+            for (Order.OrderItem item : order.getItems()) {
+                if (!id.equals(item.getBookId())) {
+                    score.merge(item.getBookId(), item.getQuantity(), Integer::sum);
+                }
+            }
         }
-        return bookRepository.findAll().stream().filter(this::isPubliclyVisible).collect(Collectors.toList());
+        return score.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(Map.Entry::getKey)
+                .limit(6)
+                .map(bookRepository::findById)
+                .flatMap(java.util.Optional::stream)
+                .filter(this::isPubliclyVisible)
+                .limit(4)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
@@ -122,5 +171,9 @@ public class BookController {
                 || book.getModerationStatus().isBlank()
                 || "APPROVED".equalsIgnoreCase(book.getModerationStatus());
         return book.isActive() && approvedOrLegacy;
+    }
+
+    private static boolean equalsIgnoreCase(String field, String param) {
+        return field != null && field.trim().equalsIgnoreCase(param.trim());
     }
 }

@@ -10,6 +10,10 @@ export const FALLBACK_BOOK_IMAGE = "https://images-na.ssl-images-amazon.com/imag
 export const TOAST_DURATION_MS = 2200;
 export const ORDER_TIMELINE_STEPS = ["PLACED", "CONFIRMED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] as const;
 
+export const FREE_SHIPPING_THRESHOLD = 999;
+export const FLAT_SHIPPING = 49;
+export const TAX_RATE = 0.05;
+
 export type Role = "BUYER" | "SELLER" | "ADMIN";
 export type SessionUser = { role: Role; name: string; email: string };
 export type Book = {
@@ -28,10 +32,26 @@ export type Book = {
   sellerStoreDescription?: string | null;
   sellerStoreWebsiteUrl?: string | null;
   sellerLogoUrl?: string | null;
+  isbn?: string;
+  language?: string;
+  format?: string;
+  publisher?: string;
+  publicationYear?: number;
 };
 export type Category = { id: string; name: string };
 export type CartItem = { id: string; bookId: string; quantity: number };
-export type Review = { id: string; userId: string; bookId: string; rating: number; comment?: string };
+export type Review = { id: string; userId: string; bookId: string; rating: number; comment?: string; verifiedPurchase?: boolean };
+export type ProductQuestion = {
+  id: string;
+  bookId: string;
+  askerUserId?: string;
+  askerName?: string;
+  question: string;
+  answer?: string;
+  answeredBy?: string;
+  createdAt?: string;
+  answeredAt?: string;
+};
 export type CartRow = CartItem & { book?: Book };
 export type Address = {
   id: string;
@@ -75,6 +95,7 @@ export type ProfileInfo = {
   storeName?: string;
   storeDescription?: string;
   storeWebsiteUrl?: string;
+  loyaltyPoints?: number;
 };
 
 export type GuardProps = { children: ReactNode; allow: Role[] };

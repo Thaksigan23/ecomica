@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ModernDashHeader, SellerStatIcons, ThemeStatTile } from "../app/dash-layout";
 import { SafeImage, api, getErrorMessage } from "../app/shared";
 import type { Book, ProfileInfo, SellerAnalytics, Toast } from "../app/shared";
 import { PaymentMethodsManager } from "./shared-components";
 
+type SellerOrderLine = { bookId?: string; title?: string; quantity?: number; subtotal?: number };
+type SellerOrderRow = {
+  orderId?: string;
+  orderDate?: string;
+  status?: string;
+  buyerUserId?: string;
+  totalAmount?: number;
+  lines?: SellerOrderLine[];
+};
+
 export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [analytics, setAnalytics] = useState<SellerAnalytics | null>(null);
+  const [sellerOrders, setSellerOrders] = useState<SellerOrderRow[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [loadError, setLoadError] = useState("");
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
@@ -14,12 +27,25 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
   const [stock, setStock] = useState("20");
   const [imageUrl, setImageUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [isbn, setIsbn] = useState("");
+  const [language, setLanguage] = useState("");
+  const [format, setFormat] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [publicationYear, setPublicationYear] = useState("");
 
   const load = async () => {
     try {
-      const [booksRes, analyticsRes] = await Promise.all([api.get("/seller/books"), api.get("/seller/analytics")]);
+      const [booksRes, analyticsRes, ordRes, catRes] = await Promise.all([
+        api.get("/seller/books"),
+        api.get("/seller/analytics"),
+        api.get("/seller/orders"),
+        api.get("/categories"),
+      ]);
       setBooks(booksRes.data);
       setAnalytics(analyticsRes.data);
+      setSellerOrders(Array.isArray(ordRes.data) ? ordRes.data : []);
+      setCategories(catRes.data || []);
       setLoadError("");
     } catch (err: unknown) {
       const msg = getErrorMessage(err, "Could not load seller data.");
@@ -32,42 +58,34 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
   const lowStock = analytics?.lowStock?.length ?? 0;
 
   return <div className="page sellerTheme modernDash">
-    <div className="dashboardHeader">
-      <div>
-        <h2>Seller dashboard</h2>
-        <p className="dashSubhead">Track performance, publish new titles, and keep your storefront story in sync.</p>
-      </div>
-      <div className="row">
-        <Link to="/seller/profile"><button className="secondary">Profile</button></Link>
-        <button className="secondary" onClick={load}>Reload</button>
-        <button className="secondary" onClick={onLogout}>Logout</button>
-      </div>
-    </div>
-    {loadError && <p className="errorText">Seller data load failed: {loadError}</p>}
-    <div className="dashStatGrid">
-      <div className="statTile">
-        <h3>Listed books</h3>
-        <p className="price">{analytics?.bookCount ?? 0}</p>
-        <p className="statHint">Including pending moderation</p>
-      </div>
-      <div className="statTile">
-        <h3>Units sold</h3>
-        <p className="price">{analytics?.totalSoldUnits ?? 0}</p>
-        <p className="statHint">All-time quantity</p>
-      </div>
-      <div className="statTile">
-        <h3>Revenue</h3>
-        <p className="price">Rs. {Number(analytics?.totalRevenue ?? 0).toFixed(0)}</p>
-        <p className="statHint">Recorded from orders</p>
-      </div>
-      <div className="statTile">
-        <h3>Low stock</h3>
-        <p className="price">{lowStock}</p>
-        <p className="statHint">SKUs that may need restock</p>
-      </div>
+    <ModernDashHeader
+      theme="seller"
+      eyebrow="Storefront"
+      title="Seller workspace"
+      subhead="Track performance, publish new titles, and keep your storefront story in sync."
+      actions={
+        <div className="row">
+          <Link to="/seller/profile"><button type="button" className="secondary">Profile</button></Link>
+          <button type="button" className="secondary" onClick={() => void load()}>Reload</button>
+          <button type="button" className="secondary" onClick={onLogout}>Logout</button>
+        </div>
+      }
+    />
+    {loadError ? <div className="sellerErrorBanner" role="alert">Seller data load failed: {loadError}</div> : null}
+    <div className="dashStatGrid adminStatGrid">
+      <ThemeStatTile theme="seller" label="Listed books" value={analytics?.bookCount ?? 0} hint="Including pending moderation" icon={<SellerStatIcons.box />} />
+      <ThemeStatTile theme="seller" label="Units sold" value={analytics?.totalSoldUnits ?? 0} hint="All-time quantity" icon={<SellerStatIcons.trend />} />
+      <ThemeStatTile
+        theme="seller"
+        label="Revenue"
+        value={`Rs. ${Number(analytics?.totalRevenue ?? 0).toFixed(0)}`}
+        hint="Recorded from orders"
+        icon={<SellerStatIcons.rupee />}
+      />
+      <ThemeStatTile theme="seller" label="Low stock" value={lowStock} hint="SKUs that may need restock" icon={<SellerStatIcons.alert />} />
     </div>
 
-    <section className="dashPanel">
+    <section className="dashPanel sellerFormPanel">
       <div className="dashPanelHead">
         <h3>Add new listing</h3>
         <span className="muted">Goes live for buyers after approval</span>
@@ -81,21 +99,35 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
         return;
       }
       try {
-        await api.post("/books", {
+        const py = publicationYear.trim() ? Number(publicationYear) : NaN;
+        const body: Record<string, unknown> = {
           title: title.trim(),
           author: author.trim(),
           price: numericPrice,
           stock: Number.isNaN(numericStock) ? 20 : Math.max(0, numericStock),
           imageUrl: imageUrl.trim(),
           description: description.trim(),
-          active: true
-        });
+          active: true,
+        };
+        if (categoryId) body.categoryId = categoryId;
+        if (isbn.trim()) body.isbn = isbn.trim();
+        if (language.trim()) body.language = language.trim();
+        if (format.trim()) body.format = format.trim();
+        if (publisher.trim()) body.publisher = publisher.trim();
+        if (!Number.isNaN(py) && py > 0) body.publicationYear = py;
+        await api.post("/books", body);
         setTitle("");
         setAuthor("");
         setPrice("399");
         setStock("20");
         setImageUrl("");
         setDescription("");
+        setCategoryId("");
+        setIsbn("");
+        setLanguage("");
+        setFormat("");
+        setPublisher("");
+        setPublicationYear("");
         onToast({ type: "success", text: "Book submitted for moderation." });
         load();
       } catch (err: unknown) {
@@ -106,11 +138,54 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
       <input required value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author" />
       <input required type="number" min="1" step="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (Rs.)" />
       <input type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Stock" />
+      <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+        <option value="">Category (optional)</option>
+        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
       <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL" />
       <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
+      <input value={isbn} onChange={(e) => setIsbn(e.target.value)} placeholder="ISBN (optional)" />
+      <input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="Language e.g. English" />
+      <select value={format} onChange={(e) => setFormat(e.target.value)}>
+        <option value="">Format (optional)</option>
+        <option value="PAPERBACK">Paperback</option>
+        <option value="HARDCOVER">Hardcover</option>
+        <option value="EBOOK">Ebook</option>
+      </select>
+      <input value={publisher} onChange={(e) => setPublisher(e.target.value)} placeholder="Publisher" />
+      <input type="number" value={publicationYear} onChange={(e) => setPublicationYear(e.target.value)} placeholder="Publication year" min="1000" max="2100" />
       <button type="submit">Add book</button>
     </form>
     <p className="muted sellerHint">Tip: new books are saved and shown here immediately, but appear in buyer catalog after admin approval.</p>
+    </section>
+
+    <section className="dashPanel">
+      <div className="dashPanelHead">
+        <h3>Orders with your titles</h3>
+        <span className="muted">{sellerOrders.length} orders</span>
+      </div>
+      {sellerOrders.length === 0 ? <p className="muted">No orders yet containing your listings.</p> : null}
+      {sellerOrders.map((o) => (
+        <div className="listRow modernDataRow sellerOrderRow" key={o.orderId}>
+          <div>
+            <strong>Order {(o.orderId || "").slice(0, 8)}</strong>
+            <div className="muted smallPrint">
+              {o.orderDate ? new Date(o.orderDate).toLocaleString() : ""}
+              {o.status ? ` · ${o.status}` : ""}
+              {o.buyerUserId ? ` · buyer ${o.buyerUserId}` : ""}
+            </div>
+            <ul className="sellerOrderLines muted smallPrint">
+              {(o.lines || []).map((ln, i) => (
+                <li key={`${o.orderId}-${ln.bookId}-${i}`}>
+                  {ln.title || ln.bookId} × {ln.quantity ?? 0}
+                  {ln.subtotal != null ? ` · Rs.${Number(ln.subtotal).toFixed(0)}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="buyerPill">Total Rs.{Number(o.totalAmount ?? 0).toFixed(0)}</div>
+        </div>
+      ))}
     </section>
 
     <section className="dashPanel">
@@ -120,7 +195,7 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
       </div>
     <div className="detailSection">
       <h3>Top Selling Books</h3>
-      {(analytics?.topBooks ?? []).map((tb) => <div className="listRow" key={tb.bookId}>
+      {(analytics?.topBooks ?? []).map((tb) => <div className="listRow modernDataRow" key={tb.bookId}>
         <span>{tb.title}</span>
         <span>{tb.soldUnits} sold • Rs. {Number(tb.revenue).toFixed(0)}</span>
       </div>)}
@@ -128,13 +203,13 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
     <div className="detailSection">
       <h3>Low stock alerts</h3>
       {(analytics?.lowStock ?? []).length === 0 && <p className="muted">No low-stock books.</p>}
-      {(analytics?.lowStock ?? []).map((ls) => <div className="listRow" key={ls.bookId}>
+      {(analytics?.lowStock ?? []).map((ls) => <div className="listRow modernDataRow" key={ls.bookId}>
         <span>{ls.title}</span>
         <span className="errorText">Stock: {ls.stock}</span>
       </div>)}
     </div>
     {books.length === 0 && <p className="muted">No books yet. Add your first listing above.</p>}
-    {books.map((b) => <div className="listRow" key={b.id}>
+    {books.map((b) => <div className="listRow modernDataRow" key={b.id}>
       <div>
         <strong>{b.title}</strong>
         <div className="muted">by {b.author} • Rs. {b.price}</div>
@@ -143,7 +218,7 @@ export function SellerDashboard({ onLogout, onToast }: { onLogout: () => void; o
         <span className={b.moderationStatus === "APPROVED" ? "successText" : b.moderationStatus === "REJECTED" ? "errorText" : "muted"}>
           {b.moderationStatus || "PENDING"}
         </span>
-        <button onClick={async () => {
+        <button type="button" onClick={async () => {
           try {
             await api.delete(`/books/${b.id}`);
             onToast({ type: "success", text: "Book deleted." });
@@ -189,16 +264,18 @@ export function SellerProfile({ onLogout, onToast }: { onLogout: () => void; onT
   const listedBooks = analytics?.bookCount ?? 0;
 
   return <div className="page sellerTheme modernDash">
-    <div className="dashboardHeader">
-      <div>
-        <h2>Seller profile</h2>
-        <p className="dashSubhead">Storefront story, payouts, and performance at a glance.</p>
-      </div>
-      <div className="row">
-        <Link to="/seller/dashboard"><button className="secondary">Back</button></Link>
-        <button className="secondary" onClick={onLogout}>Logout</button>
-      </div>
-    </div>
+    <ModernDashHeader
+      theme="seller"
+      eyebrow="Branding"
+      title="Seller profile"
+      subhead="Storefront story, payouts, and performance at a glance."
+      actions={
+        <div className="row">
+          <Link to="/seller/dashboard"><button type="button" className="secondary">Back</button></Link>
+          <button type="button" className="secondary" onClick={onLogout}>Logout</button>
+        </div>
+      }
+    />
     <form
       className="profileGrid"
       onSubmit={async (e) => {
@@ -240,11 +317,11 @@ export function SellerProfile({ onLogout, onToast }: { onLogout: () => void; onT
       </div>
       <div className="detailSection">
         <h3>Performance</h3>
-        <div className="listRow"><span>Listed books</span><strong>{listedBooks}</strong></div>
-        <div className="listRow"><span>Total units sold</span><strong>{analytics?.totalSoldUnits ?? 0}</strong></div>
-        <div className="listRow"><span>Total revenue</span><strong>Rs. {Number(analytics?.totalRevenue ?? 0).toFixed(0)}</strong></div>
-        <div className="listRow"><span>Low-stock SKUs</span><strong>{analytics?.lowStock?.length ?? 0}</strong></div>
-        <div className="listRow"><span>Growth tip</span><strong>Complete your storefront story below</strong></div>
+        <div className="listRow modernDataRow"><span>Listed books</span><strong>{listedBooks}</strong></div>
+        <div className="listRow modernDataRow"><span>Total units sold</span><strong>{analytics?.totalSoldUnits ?? 0}</strong></div>
+        <div className="listRow modernDataRow"><span>Total revenue</span><strong>Rs. {Number(analytics?.totalRevenue ?? 0).toFixed(0)}</strong></div>
+        <div className="listRow modernDataRow"><span>Low-stock SKUs</span><strong>{analytics?.lowStock?.length ?? 0}</strong></div>
+        <div className="listRow modernDataRow"><span>Growth tip</span><strong>Complete your storefront story below</strong></div>
         <div className="profileQuickLinks">
           <Link to="/seller/dashboard"><button type="button" className="secondary">Manage listings</button></Link>
         </div>

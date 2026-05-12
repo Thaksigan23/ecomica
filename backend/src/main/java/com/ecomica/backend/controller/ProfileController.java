@@ -120,6 +120,7 @@ public class ProfileController {
         payload.put("storeName", user.getStoreName());
         payload.put("storeDescription", user.getStoreDescription());
         payload.put("storeWebsiteUrl", user.getStoreWebsiteUrl());
+        payload.put("loyaltyPoints", user.getLoyaltyPoints() == null ? 0L : user.getLoyaltyPoints());
         return payload;
     }
 }
