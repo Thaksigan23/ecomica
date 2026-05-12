@@ -89,3 +89,57 @@ function AdminStatIconPending() {
     </svg>
   );
 }
+
+function AdminStatTile({
+  loading,
+  label,
+  value,
+  hint,
+  icon,
+}: {
+  loading: boolean;
+  label: string;
+  value: string | number;
+  hint: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className={`statTile adminStatTile${loading ? " adminStatTile--loading" : ""}`}>
+      <div className="adminStatTileTop">
+        <h3>{label}</h3>
+        <span className="adminStatIconWrap" aria-hidden>
+          {icon}
+        </span>
+      </div>
+      <p className="price">{loading ? <span className="adminSkeletonLine" /> : value}</p>
+      <p className="statHint">{hint}</p>
+    </div>
+  );
+}
+
+function HorizontalBarBlock({ title, subtitle, rows }: { title: string; subtitle?: string; rows: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <section className="dashPanel adminGraphPanel">
+      <div className="dashPanelHead adminGraphPanelHead">
+        <h3>{title}</h3>
+        {subtitle ? <span className="muted">{subtitle}</span> : null}
+      </div>
+      {rows.length === 0 ? (
+        <p className="muted">No data for this chart yet.</p>
+      ) : (
+        rows.map((r) => (
+          <div key={r.label} className="adminHBarRow">
+            <span className="adminHBarLabel" title={r.label}>
+              {r.label}
+            </span>
+            <div className="adminHBarTrack" aria-hidden>
+              <div className="adminHBarFill" style={{ width: `${(r.value / max) * 100}%` }} />
+            </div>
+            <span className="adminHBarValue">{r.value}</span>
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
