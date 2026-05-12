@@ -386,3 +386,144 @@ export function AdminDashboard({ onLogout, onToast }: { onLogout: () => void; on
           </div>
         </>
       )}
+
+
+      {viewMode === "table" && (
+        <div className="adminTableGrid">
+          <section className="dashPanel adminDashPanel">
+            <div className="dashPanelHead">
+              <h3>Recent orders</h3>
+              <span className="muted">Latest {Math.min(10, orders.length)}</span>
+            </div>
+            {orders.slice(0, 10).map((o) => {
+              const oid = o.id.length > 12 ? `${o.id.slice(0, 10)}…` : o.id;
+              return (
+                <div key={o.id} className="listRow adminListRow">
+                  <div className="adminListRowMain">
+                    <span className="adminListRowTitle">Order {oid}</span>
+                    <span className="adminListRowMeta">{o.userId || "Unknown buyer"}</span>
+                    <div className="adminPillRow">
+                      <AdminPill tone="neutral">{String(o.paymentMethod || "—")}</AdminPill>
+                      <AdminPill tone="neutral">{String(o.paymentStatus || "—")}</AdminPill>
+                      {o.status ? <AdminPill tone="warn">{String(o.status)}</AdminPill> : null}
+                    </div>
+                  </div>
+                  <div className="adminListRowAside">
+                    <span className="adminMoney">Rs. {Number(o.totalAmount || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {orders.length === 0 && !loading && (
+              <div className="adminEmptyWell">
+                <p className="adminEmptyTitle">No orders yet</p>
+                <p className="muted">When buyers check out, their orders will appear here.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="dashPanel adminDashPanel">
+            <div className="dashPanelHead">
+              <h3>Users</h3>
+              <span className="muted">Showing {Math.min(10, users.length)} of {users.length}</span>
+            </div>
+            {users.slice(0, 10).map((u) => (
+              <div key={u.id} className="listRow adminListRow">
+                <div className="adminListRowMain">
+                  <span className="adminListRowTitle">{u.name}</span>
+                  <span className="adminListRowMeta">{u.email}</span>
+                  <div className="adminPillRow">
+                    <AdminPill tone={roleTone(u.role)}>{u.role}</AdminPill>
+                    <AdminPill tone={u.blocked ? "bad" : "ok"}>{u.blocked ? "Blocked" : "Active"}</AdminPill>
+                  </div>
+                </div>
+                <div className="adminListRowAside">
+                  <button type="button" className="secondary adminCompactBtn" onClick={() => toggleUserBlock(u)}>
+                    {u.blocked ? "Unblock" : "Block"}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {users.length === 0 && !loading && (
+              <div className="adminEmptyWell">
+                <p className="adminEmptyTitle">No users loaded</p>
+                <p className="muted">Confirm you are signed in as an admin.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="dashPanel adminDashPanel adminTableGridSpan2">
+            <div className="dashPanelHead">
+              <h3>Book moderation</h3>
+              <span className="muted">{filteredBooks.length} in view</span>
+            </div>
+            <div className="searchCard adminSearchCard">
+              <div className="adminSearchWrap">
+                <span className="adminSearchIcon" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </span>
+                <input
+                  className="adminSearchInput"
+                  value={bookSearch}
+                  onChange={(e) => setBookSearch(e.target.value)}
+                  placeholder="Search title or seller email"
+                  aria-label="Search listings"
+                />
+              </div>
+            </div>
+            <div className="adminFilterBar">
+              <button type="button" className={bookFilter === "ALL" ? "adminChip adminChip--active" : "adminChip"} onClick={() => setBookFilter("ALL")}>
+                All ({books.length})
+              </button>
+              <button type="button" className={bookFilter === "PENDING" ? "adminChip adminChip--active" : "adminChip"} onClick={() => setBookFilter("PENDING")}>
+                Pending ({pendingBooksCount})
+              </button>
+              <button type="button" className={bookFilter === "APPROVED" ? "adminChip adminChip--active" : "adminChip"} onClick={() => setBookFilter("APPROVED")}>
+                Approved ({books.filter((b) => (b.moderationStatus || "PENDING").toUpperCase() === "APPROVED").length})
+              </button>
+              <button type="button" className={bookFilter === "REJECTED" ? "adminChip adminChip--active" : "adminChip"} onClick={() => setBookFilter("REJECTED")}>
+                Rejected ({books.filter((b) => (b.moderationStatus || "PENDING").toUpperCase() === "REJECTED").length})
+              </button>
+            </div>
+            {visibleBooks.map((b) => {
+              const st = b.moderationStatus || "PENDING";
+              return (
+                <div key={b.id} className="listRow adminListRow adminModRow">
+                  <div className="adminListRowMain">
+                    <span className="adminListRowTitle">{b.title}</span>
+                    <span className="adminListRowMeta">{b.sellerEmail || "Seller N/A"}</span>
+                    <div className="adminPillRow">
+                      <AdminPill tone={moderationTone(st)}>{st}</AdminPill>
+                    </div>
+                  </div>
+                  <div className="adminListRowAside adminModActions">
+                    <button type="button" onClick={() => moderateBook(b.id, "APPROVED")}>
+                      Approve
+                    </button>
+                    <button type="button" className="secondary adminBtnReject" onClick={() => moderateBook(b.id, "REJECTED")}>
+                      Reject
+                    </button>
+                    <button type="button" className="secondary adminCompactBtn" onClick={() => moderateBook(b.id, "PENDING")}>
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredBooks.length === 0 && !loading && <p className="muted adminModEmpty">No books match this filter.</p>}
+            {filteredBooks.length > visibleBooks.length && (
+              <div className="adminLoadMoreWrap">
+                <button type="button" onClick={() => setVisibleBookCount((c) => c + MODERATION_PAGE_SIZE)}>
+                  Load more ({filteredBooks.length - visibleBooks.length} remaining)
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
