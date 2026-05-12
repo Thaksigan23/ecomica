@@ -143,3 +143,81 @@ function HorizontalBarBlock({ title, subtitle, rows }: { title: string; subtitle
     </section>
   );
 }
+
+function OrdersPerDayChart({ days }: { days: ReturnType<typeof ordersTimelineSeries> }) {
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const barMaxPx = 118;
+  return (
+    <section className="dashPanel adminGraphPanel adminGraphPanel--wide">
+      <div className="dashPanelHead adminGraphPanelHead">
+        <h3>Orders per day</h3>
+        <span className="muted">Last {days.length} days (local time)</span>
+      </div>
+      <div className="adminVBarChart" role="img" aria-label="Order count per day">
+        {days.map((d) => {
+          const h = d.count === 0 ? 0 : Math.max(6, (d.count / max) * barMaxPx);
+          const title = `${d.key}: ${d.count} orders · Rs. ${d.revenue.toFixed(0)} revenue`;
+          return (
+            <div key={d.key} className="adminVBarWrap" title={title}>
+              <div className="adminVBar" style={{ height: `${h}px` }} />
+              <span className="adminVBarLab">{d.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AdminPill({ children, tone = "neutral" }: { children: string; tone?: "neutral" | "ok" | "bad" | "warn" }) {
+  return <span className={`adminPill adminPill--${tone}`}>{children}</span>;
+}
+
+function formatClock(d: Date) {
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function moderationTone(status: string): "neutral" | "ok" | "bad" | "warn" {
+  const s = status.toUpperCase();
+  if (s === "APPROVED") return "ok";
+  if (s === "REJECTED") return "bad";
+  if (s === "PENDING") return "warn";
+  return "neutral";
+}
+
+function roleTone(role: string): "neutral" | "ok" | "bad" | "warn" {
+  const r = role.toUpperCase();
+  if (r === "ADMIN") return "warn";
+  if (r === "BUYER") return "ok";
+  if (r === "SELLER") return "neutral";
+  return "neutral";
+}
+
+export function AdminDashboard({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
+  const MODERATION_PAGE_SIZE = 10;
+  const [viewMode, setViewMode] = useState<"table" | "graph">("table");
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [bookFilter, setBookFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+  const [bookSearch, setBookSearch] = useState("");
+  const [visibleBookCount, setVisibleBookCount] = useState(MODERATION_PAGE_SIZE);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [usersRes, ordersRes, booksRes] = await Promise.all([api.get("/admin/users"), api.get("/admin/orders"), api.get("/admin/books")]);
+      setUsers(usersRes.data);
+      setOrders(ordersRes.data);
+      setBooks(booksRes.data);
+      setError("");
+      setLastRefreshed(new Date());
+    } catch {
+      setError("Admin data could not be loaded. Login with admin account.");
+    } finally {
+      setLoading(false);
+    }
+  }
