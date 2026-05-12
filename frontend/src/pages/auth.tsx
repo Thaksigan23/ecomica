@@ -27,29 +27,34 @@ export function Landing() {
 
   const currentSlide = heroSlides[slideIndex];
 
-  return <div className="page">
+  return <div className="page modernLanding">
     <div className="amazonHeaderWrap">
       <div className="amazonHeader">
         <div className="brand">ecomica</div>
         <div className="headerSearch">
-          <select>
+          <select aria-label="Search scope">
             <option>All</option>
             <option>Books</option>
             <option>Education</option>
             <option>Comics</option>
           </select>
-          <input placeholder="Search books, authors and categories" />
-          <button>Search</button>
+          <input placeholder="Search books, authors and categories" aria-label="Search" />
+          <button type="button">Search</button>
         </div>
         <div className="headerLinks">
-          <span>Best Sellers</span>
-          <span>New Releases</span>
+          <Link to="/buyer/dashboard">Best Sellers</Link>
+          <Link to="/buyer/dashboard?q=new">New Releases</Link>
           <span>Gift Ideas</span>
         </div>
       </div>
       <div className="signinPopover">
-        <button>Sign in</button>
-        <p>New customer? <Link to="/register">Start here.</Link></p>
+        <Link to="/login" className="signinPrimary">Sign in</Link>
+        <p>
+          New customer?{" "}
+          <Link to="/register" className="signinRegister">
+            Start here.
+          </Link>
+        </p>
       </div>
     </div>
 
@@ -119,10 +124,14 @@ export function Landing() {
     </div>
 
     <div className="authActions">
-      <Link to="/login"><button>Login</button></Link>
-      <Link to="/register"><button className="secondary">Register</button></Link>
+      <Link to="/login" className="landingAuthLink">
+        Login
+      </Link>
+      <Link to="/register" className="landingAuthLink secondary">
+        Register
+      </Link>
     </div>
-    <button className="backToTop" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+    <button type="button" className="backToTop" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
       Back to top
     </button>
   </div>;
@@ -167,18 +176,21 @@ export function Login({ onLogin, onToast }: { onLogin: (user: SessionUser) => vo
   }
   return <div className="page authPage authShell">
     <div className="authTopBar">
-      <Link to="/"><button className="secondary">← Back to landing</button></Link>
+      <Link to="/"><button type="button" className="secondary">← Back to landing</button></Link>
     </div>
     <form className="formCard modernAuthCard" onSubmit={submit}>
+      <p className="authEyebrow">Welcome back</p>
       <h2>Sign in</h2>
       <p className="muted">Access buyer, seller, or admin dashboards.</p>
       <input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
       <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
       <button type="submit">Login</button>
       {error && <span className="errorText">{error}</span>}
-      <span className="muted">Demo buyer 2: buyer2@ecomica.com / buyer234</span>
-      <span className="muted">Demo seller 2: seller2@ecomica.com / seller234</span>
-      <span className="muted">Demo admin: admin@ecomica.com / admin123</span>
+      <div className="authDemoHints">
+        <span className="muted">Demo buyer 2: buyer2@ecomica.com / buyer234</span>
+        <span className="muted">Demo seller 2: seller2@ecomica.com / seller234</span>
+        <span className="muted">Demo admin: admin@ecomica.com / admin123</span>
+      </div>
     </form>
   </div>;
 }
@@ -208,11 +220,13 @@ export function Register({ onToast }: { onToast: (toast: Toast) => void }) {
     }
   }
 
+
   return <div className="page authPage authShell">
     <div className="authTopBar">
-      <Link to="/"><button className="secondary">← Back to landing</button></Link>
+      <Link to="/"><button type="button" className="secondary">← Back to landing</button></Link>
     </div>
-    <form className="formCard modernAuthCard" onSubmit={submit}>
+    <form className="formCard modernAuthCard modernAuthCard--register" onSubmit={submit}>
+      <p className="authEyebrow">Join ecomica</p>
       <h2>Create account</h2>
       <p className="muted">Register as buyer or seller in seconds.</p>
       <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />

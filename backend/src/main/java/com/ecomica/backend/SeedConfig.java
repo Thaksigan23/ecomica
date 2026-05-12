@@ -2,10 +2,12 @@ package com.ecomica.backend;
 
 import com.ecomica.backend.model.Book;
 import com.ecomica.backend.model.Category;
+import com.ecomica.backend.model.Coupon;
 import com.ecomica.backend.model.Role;
 import com.ecomica.backend.model.User;
 import com.ecomica.backend.repository.BookRepository;
 import com.ecomica.backend.repository.CategoryRepository;
+import com.ecomica.backend.repository.CouponRepository;
 import com.ecomica.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +30,7 @@ public class SeedConfig {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final BookRepository bookRepository;
+    private final CouponRepository couponRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${ADMIN_EMAIL:admin@ecomica.com}")
@@ -72,6 +75,11 @@ public class SeedConfig {
                         .active(true)
                         .moderationStatus("APPROVED")
                         .createdAt(Instant.now())
+                        .language("English")
+                        .format("PAPERBACK")
+                        .isbn("9780061122415")
+                        .publisher("HarperOne")
+                        .publicationYear(1988)
                         .build());
                 bookRepository.save(Book.builder()
                         .title("Spring Boot in Action")
@@ -180,7 +188,30 @@ public class SeedConfig {
                     21,
                     "https://images-na.ssl-images-amazon.com/images/I/81JJPDNlxSL.jpg",
                     categoryMap.get("Novels"));
+
+            seedCoupons();
         };
+    }
+
+    private void seedCoupons() {
+        Instant farFuture = Instant.now().plusSeconds(86400L * 365 * 5);
+        upsertCoupon("SAVE10", 10, farFuture, null);
+        upsertCoupon("WELCOME15", 15, farFuture, new BigDecimal("500"));
+    }
+
+    private void upsertCoupon(String code, int discountPercent, Instant validUntil, BigDecimal minMerchandiseSubtotal) {
+        String normalized = code.trim().toUpperCase();
+        couponRepository.findByCodeIgnoreCase(normalized).ifPresentOrElse(
+                existing -> {
+                },
+                () -> couponRepository.save(Coupon.builder()
+                        .code(normalized)
+                        .discountPercent(discountPercent)
+                        .validUntil(validUntil)
+                        .active(true)
+                        .minMerchandiseSubtotal(minMerchandiseSubtotal)
+                        .build())
+        );
     }
 
     private void upsertDemoUser(String name, String email, String password, Role role) {
@@ -193,6 +224,9 @@ public class SeedConfig {
         user.setBlocked(false);
         if (user.getCreatedAt() == null) {
             user.setCreatedAt(Instant.now());
+        }
+        if (user.getLoyaltyPoints() == null) {
+            user.setLoyaltyPoints(0L);
         }
         userRepository.save(user);
     }

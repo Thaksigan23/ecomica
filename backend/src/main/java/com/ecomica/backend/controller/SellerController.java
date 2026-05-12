@@ -13,9 +13,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -32,6 +36,43 @@ public class SellerController {
         return bookRepository.findBySellerEmail(authentication.getName());
     }
 
+    @GetMapping("/orders")
+    public List<Map<String, Object>> sellerOrders(Authentication authentication) {
+        List<Book> sellerBooks = bookRepository.findBySellerEmail(authentication.getName());
+        Set<String> bookIds = sellerBooks.stream().map(Book::getId).collect(Collectors.toSet());
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Order order : orderRepository.findAll()) {
+            if (order.getItems() == null) {
+                continue;
+            }
+            List<Map<String, Object>> lines = new ArrayList<>();
+            for (Order.OrderItem item : order.getItems()) {
+                if (bookIds.contains(item.getBookId())) {
+                    Map<String, Object> line = new LinkedHashMap<>();
+                    line.put("bookId", item.getBookId());
+                    line.put("title", item.getTitleSnapshot());
+                    line.put("quantity", item.getQuantity());
+                    line.put("subtotal", item.getSubtotal());
+                    lines.add(line);
+                }
+            }
+            if (lines.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("orderId", order.getId());
+            row.put("orderDate", order.getOrderDate());
+            row.put("status", order.getStatus());
+            row.put("buyerUserId", order.getUserId());
+            row.put("totalAmount", order.getTotalAmount());
+            row.put("lines", lines);
+            out.add(row);
+        }
+        out.sort(Comparator.comparing((Map<String, Object> m) -> (java.time.Instant) m.get("orderDate"),
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        return out;
+    }
+
     @GetMapping("/analytics")
     public Map<String, Object> analytics(Authentication authentication) {
         List<Book> sellerBooks = bookRepository.findBySellerEmail(authentication.getName());
@@ -40,6 +81,9 @@ public class SellerController {
         Map<String, BigDecimal> revenueByBook = new HashMap<>();
 
         for (Order order : orderRepository.findAll()) {
+            if (order.getItems() == null) {
+                continue;
+            }
             for (Order.OrderItem item : order.getItems()) {
                 if (byId.containsKey(item.getBookId())) {
                     soldQtyByBook.merge(item.getBookId(), item.getQuantity(), Integer::sum);

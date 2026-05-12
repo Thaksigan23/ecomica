@@ -36,6 +36,15 @@ public class Book {
     private String moderationStatus;
     private Instant createdAt;
 
+    /** Optional catalogue metadata */
+    private String isbn;
+    /** e.g. English, Tamil */
+    private String language;
+    /** PAPERBACK, HARDCOVER, EBOOK */
+    private String format;
+    private String publisher;
+    private Integer publicationYear;
+
     /** Filled on public book-by-id only; not stored in MongoDB. */
     @Transient
     private String sellerStoreName;
