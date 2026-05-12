@@ -1,7 +1,7 @@
 import type { GuardProps, Role, SessionUser } from "./shared";
 import { Navigate, useLocation } from "react-router-dom";
 
-type Props = GuardProps & { user: SessionUser | null };
+ type Props = GuardProps & { user: SessionUser | null };
 
 
 export function RoleGuard({ children, allow, user }: Props) {

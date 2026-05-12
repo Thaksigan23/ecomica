@@ -40,7 +40,7 @@ export type Book = {
 };
 
 
-export type Category = { id: string; name: string };
+ export type Category = { id: string; name: string };
 export type CartItem = { id: string; bookId: string; quantity: number };
 export type Review = { id: string; userId: string; bookId: string; rating: number; comment?: string; verifiedPurchase?: boolean };
 export type ProductQuestion = {
