@@ -221,3 +221,168 @@ export function AdminDashboard({ onLogout, onToast }: { onLogout: () => void; on
       setLoading(false);
     }
   }
+
+  useEffect(() => { load(); }, []);
+  const revenue = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+  const pendingBooksCount = books.filter((b) => (b.moderationStatus || "PENDING").toUpperCase() === "PENDING").length;
+  const filteredBooks = books.filter((b) => {
+    const statusMatch = bookFilter === "ALL" || (b.moderationStatus || "PENDING").toUpperCase() === bookFilter;
+    const search = bookSearch.trim().toLowerCase();
+    const text = `${b.title || ""} ${b.sellerEmail || ""}`.toLowerCase();
+    const searchMatch = !search || text.includes(search);
+    return statusMatch && searchMatch;
+  });
+  const visibleBooks = filteredBooks.slice(0, visibleBookCount);
+
+  useEffect(() => {
+    setVisibleBookCount(MODERATION_PAGE_SIZE);
+  }, [bookFilter, bookSearch, books.length]);
+
+  async function moderateBook(bookId: string, status: "APPROVED" | "REJECTED" | "PENDING") {
+    try {
+      await api.patch(`/admin/books/${bookId}/moderation`, { status });
+      onToast({ type: "success", text: `Book marked as ${status}.` });
+      load();
+    } catch {
+      onToast({ type: "error", text: "Could not update book moderation status." });
+    }
+  }
+
+  async function toggleUserBlock(user: AdminUser) {
+    try {
+      const nextBlocked = !user.blocked;
+      await api.patch(`/admin/users/${user.id}/block`, { blocked: nextBlocked });
+      onToast({ type: "success", text: nextBlocked ? "User blocked successfully." : "User unblocked successfully." });
+      load();
+    } catch {
+      onToast({ type: "error", text: "Could not update user block status." });
+    }
+  }
+
+  const timelineDays = useMemo(() => ordersTimelineSeries(orders, 14), [orders]);
+  const paymentStatusRows = useMemo(() => countByLabels(orders, (o) => String(o.paymentStatus || "Unknown")), [orders]);
+  const paymentMethodRows = useMemo(() => countByLabels(orders, (o) => String(o.paymentMethod || "Unknown")), [orders]);
+  const orderStatusRows = useMemo(() => countByLabels(orders, (o) => String(o.status || "Unknown")), [orders]);
+  const userRoleRows = useMemo(() => countByLabels(users, (u) => String(u.role || "Unknown")), [users]);
+  const moderationRows = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+    for (const b of books) {
+      const s = (b.moderationStatus || "PENDING").toUpperCase();
+      if (s === "APPROVED") approved += 1;
+      else if (s === "REJECTED") rejected += 1;
+      else pending += 1;
+    }
+    return [
+      { label: "Pending", value: pending },
+      { label: "Approved", value: approved },
+      { label: "Rejected", value: rejected },
+    ];
+  }, [books]);
+
+  return (
+    <div className="page adminTheme modernDash adminDashPage">
+      <header className="dashboardHeader adminDashHeader">
+        <div className="adminDashHeaderLead">
+          <p className="adminDashEyebrow">Operations</p>
+          <h2>Command center</h2>
+          <p className="dashSubhead">
+            Live overview of accounts, orders, and catalogue health.
+            {lastRefreshed && !loading && !error ? (
+              <>
+                {" "}
+                <span className="adminDashUpdated">Refreshed {formatClock(lastRefreshed)}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <div className="dashHeaderActions adminDashHeaderActions">
+          <div className="adminSegToggle" role="tablist" aria-label="Dashboard layout">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "table"}
+              className={viewMode === "table" ? "is-active" : ""}
+              onClick={() => setViewMode("table")}
+            >
+              Data
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "graph"}
+              className={viewMode === "graph" ? "is-active" : ""}
+              onClick={() => setViewMode("graph")}
+            >
+              Insights
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`secondary adminIconBtn${loading ? " adminIconBtn--spinning" : ""}`}
+            onClick={() => void load()}
+            disabled={loading}
+            title="Refresh data"
+            aria-busy={loading}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 16h5v5" />
+            </svg>
+          </button>
+          <button type="button" className="secondary" onClick={onLogout}>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      {error ? <div className="adminErrorBanner" role="alert">{error}</div> : null}
+
+      <div className="dashStatGrid adminStatGrid">
+        <AdminStatTile
+          loading={loading}
+          label="Total users"
+          value={users.length}
+          hint="Registered buyers, sellers & admins"
+          icon={<AdminStatIconUsers />}
+        />
+        <AdminStatTile
+          loading={loading}
+          label="Total orders"
+          value={orders.length}
+          hint="Across the marketplace"
+          icon={<AdminStatIconOrders />}
+        />
+        <AdminStatTile
+          loading={loading}
+          label="Total revenue"
+          value={`Rs. ${revenue.toFixed(0)}`}
+          hint="Sum of recorded order totals"
+          icon={<AdminStatIconRevenue />}
+        />
+        <AdminStatTile
+          loading={loading}
+          label="Pending approvals"
+          value={pendingBooksCount}
+          hint="Listings awaiting review"
+          icon={<AdminStatIconPending />}
+        />
+      </div>
+
+      {viewMode === "graph" && !error && (
+        <>
+          <p className="dashGraphHint adminGraphHint">
+            Visual summaries from the same dataset as Data view. Switch to Data to block users or moderate listings.
+          </p>
+          <div className="adminChartGrid">
+            <OrdersPerDayChart days={timelineDays} />
+            <HorizontalBarBlock title="Payment status" subtitle="Order count" rows={paymentStatusRows} />
+            <HorizontalBarBlock title="Payment method" subtitle="Order count" rows={paymentMethodRows} />
+            <HorizontalBarBlock title="Order status" subtitle="Fulfillment pipeline" rows={orderStatusRows} />
+            <HorizontalBarBlock title="User roles" subtitle="Registered accounts" rows={userRoleRows} />
+            <HorizontalBarBlock title="Book moderation" subtitle="Catalogue state" rows={moderationRows} />
+          </div>
+        </>
+      )}
