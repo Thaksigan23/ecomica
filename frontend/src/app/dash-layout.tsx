@@ -12,7 +12,9 @@ export function ModernDashHeader({
   subhead: string;
   theme: "buyer" | "seller";
   actions: ReactNode;
-}) {
+}) 
+
+{
   return (
     <header className={`dashboardHeader modernDashHeader modernDashHeader--${theme}`}>
       <div className="modernDashHeaderLead">

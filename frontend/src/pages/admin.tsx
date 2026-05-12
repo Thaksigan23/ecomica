@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../app/shared";
 import type { AdminUser, Book, Toast } from "../app/shared";
 
+
 type AdminOrder = {
   id: string;
   userId?: string;
@@ -46,12 +47,15 @@ function ordersTimelineSeries(orders: AdminOrder[], dayCount: number) {
 }
 
 
+
+
 function countByLabels<T>(items: T[], labelFn: (item: T) => string) {
   const map = new Map<string, number>();
   for (const item of items) {
     const label = labelFn(item) || "—";
     map.set(label, (map.get(label) || 0) + 1);
   }
+
   return [...map.entries()]
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value);
@@ -116,6 +120,7 @@ function AdminStatTile({
     </div>
   );
 }
+
 
 function HorizontalBarBlock({ title, subtitle, rows }: { title: string; subtitle?: string; rows: { label: string; value: number }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.value));

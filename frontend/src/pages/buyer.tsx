@@ -23,6 +23,7 @@ function estimateCheckoutTotals(merchandiseSubtotal: number, couponTrim: string)
   return { discount, merchandiseSubtotal, afterCoupon: after, shipping, tax, total };
 }
 
+
 export function BuyerDashboard({ onLogout, onToast }: { onLogout: () => void; onToast: (toast: Toast) => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);

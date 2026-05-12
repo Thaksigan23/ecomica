@@ -220,6 +220,7 @@ export function Register({ onToast }: { onToast: (toast: Toast) => void }) {
     }
   }
 
+
   return <div className="page authPage authShell">
     <div className="authTopBar">
       <Link to="/"><button type="button" className="secondary">← Back to landing</button></Link>
