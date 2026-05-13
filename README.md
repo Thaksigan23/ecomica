@@ -7,20 +7,24 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 
 ### Buyer
 - Register/login as buyer
-- Browse books by search and category
-- View book details, reviews, and related books
+- Browse books by search, category, and filters (price range, in-stock, format, language)
+- View book details with optional metadata (ISBN, language, format, publisher, year)
+- Related titles, **customers also bought**, and **Q&A** (ask questions; sellers/admins can answer)
+- Reviews with **verified purchase** badge when the buyer bought the book
 - Add/remove cart items and update quantities
 - Wishlist support
 - Address book management
-- Buyer profile page with editable account info
+- Buyer profile page with editable account info and **loyalty points**
 - Save/manage payment methods (Card and UPI)
-- Multi-step checkout (Address -> Payment -> Review)
+- Multi-step checkout (Address -> Payment -> Review) with **promo codes** (e.g. seeded `SAVE10`, `WELCOME15`), merchandise/discount/shipping/tax/total aligned with the server
+- Cancel **PLACED** orders from order history; order lines show **coupon and breakdown** when present
 - Order history with status timeline
 
 ### Seller
 - Register/login as seller
 - Seller dashboard with separate visual theme
-- Add and delete own book listings
+- Add and delete own book listings (optional category and catalogue metadata: ISBN, language, format, publisher, publication year)
+- **Orders containing your listings** (read-only view per order lines)
 - Seller profile page with store/account details
 - Save/manage payment methods (Card and UPI)
 - Seller analytics:
@@ -48,8 +52,14 @@ It supports buyer, seller, and admin workflows in one project, with a modern Ama
 - Landing product cards linking to filtered buyer views
 - Role-based route guards with redirect-after-login
 - Floating animated toast notifications across app
+- Light **route enter animation** on navigation (respects reduced-motion)
 - Modernized seller dashboard with listing status badges and reload
 - Vite `/api` proxy for stable local frontend-backend connectivity
+
+### Checkout rules (demo)
+- Flat shipping **Rs. 49** unless merchandise after coupon is **≥ Rs. 999** (free shipping)
+- Tax **5%** on merchandise after discount
+- Seeded coupons (see `SeedConfig`): **`SAVE10`** (10% off), **`WELCOME15`** (15% off, minimum merchandise **Rs. 500**)
 
 ## Tech Stack
 
@@ -137,7 +147,9 @@ npm run dev
 
 Frontend default URL:
 
-- `http://localhost:5173`
+- `http://localhost:5173` (if that port is busy, Vite picks the next free port, e.g. **5174**)
+
+If the backend fails with **port 8080 already in use**, stop the existing Java/Spring process or change the server port in Spring Boot config.
 
 ## Dev Networking (Important)
 
@@ -175,16 +187,16 @@ npm run dev
 ## Key API Groups
 
 - `/api/auth/*` - login/register
-- `/api/books/*` - books catalog and CRUD
+- `/api/books/*` - books catalog and CRUD; filters via query params; `GET .../also-bought`; `GET|POST .../questions`, `PATCH .../questions/{id}/answer`
 - `/api/categories/*` - categories
 - `/api/cart/*` - cart operations
-- `/api/orders/*` - checkout and orders
+- `/api/orders/*` - checkout and orders; `PATCH .../{id}/cancel` for PLACED orders (buyer/admin)
 - `/api/reviews/*` - reviews
 - `/api/wishlist/*` - wishlist
 - `/api/addresses/*` - address book
-- `/api/profile/*` - profile view/update
+- `/api/profile/*` - profile view/update (includes loyalty points)
 - `/api/payment-methods/*` - saved payment methods
-- `/api/seller/*` - seller books/analytics
+- `/api/seller/*` - seller books, analytics, **orders**
 - `/api/admin/*` - admin users/orders/books moderation
 
 ## Notes
