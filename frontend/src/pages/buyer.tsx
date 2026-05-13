@@ -702,7 +702,7 @@ export function CartAndPayment({ onLogout, onToast }: { onLogout: () => void; on
       }
       load();
     } catch {
-      onToast({ type: "error", text: "Could not update cart item." });
+      onToast({ type: "error", text: "COULD NOT UPDADED CART ITEM." });
     }
   }
 
