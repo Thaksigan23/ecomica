@@ -43,7 +43,7 @@ public class CartController {
     @DeleteMapping("/{id}")
     public void remove(@PathVariable String id) {
         cartItemRepository.deleteById(id);
-    }
+    }}
 
     @PatchMapping("/{id}")
     public CartItem updateQuantity(Authentication authentication, @PathVariable String id, @RequestBody Map<String, Integer> payload) {
