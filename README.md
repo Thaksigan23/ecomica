@@ -211,3 +211,4 @@ npm run dev
 ## Author
 
 Built for the Ecomica fullstack project.
+team members
